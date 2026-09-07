@@ -146,6 +146,7 @@
             trackBarPlayHead.Name = "trackBarPlayHead";
             trackBarPlayHead.Size = new Size(956, 45);
             trackBarPlayHead.TabIndex = 1;
+            trackBarPlayHead.Click += trackBarPlayHead_Click;
             trackBarPlayHead.Scroll += trackBarPlayHead_Scroll;
             // 
             // trackBarSpeed
@@ -159,6 +160,7 @@
             trackBarSpeed.Orientation = Orientation.Vertical;
             trackBarSpeed.Size = new Size(45, 560);
             trackBarSpeed.TabIndex = 1;
+            trackBarSpeed.Click += trackBarSpeed_Click;
             trackBarSpeed.Scroll += trackBarSpeed_Scroll;
             trackBarSpeed.MouseDown += trackBarSpeed_MouseDown;
             // 
@@ -181,7 +183,6 @@
             pnlVIDEO.Size = new Size(1146, 603);
             pnlVIDEO.TabIndex = 3;
             pnlVIDEO.DoubleClick += pnlVIDEO_DoubleClick;
-            pnlVIDEO.MouseClick += pnlVIDEO_MouseClick;
             pnlVIDEO.MouseDown += pnlVIDEO_MouseDown;
             pnlVIDEO.MouseMove += pnlVIDEO_MouseMove;
             pnlVIDEO.MouseUp += pnlVIDEO_MouseUp;
@@ -195,6 +196,7 @@
             pnlVideoFull.Name = "pnlVideoFull";
             pnlVideoFull.Size = new Size(261, 200);
             pnlVideoFull.TabIndex = 3;
+            pnlVideoFull.MouseClick += pnlVideoFull_MouseClick;
             // 
             // pnlVideoZoom
             // 
@@ -203,18 +205,20 @@
             pnlVideoZoom.Name = "pnlVideoZoom";
             pnlVideoZoom.Size = new Size(123, 89);
             pnlVideoZoom.TabIndex = 0;
+            pnlVideoZoom.MouseClick += pnlVideoFull_MouseClick;
             // 
             // dataGridView1
             // 
             dataGridView1.AllowUserToAddRows = false;
             dataGridView1.AllowUserToDeleteRows = false;
+            dataGridView1.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Location = new Point(817, 7);
+            dataGridView1.Location = new Point(820, 7);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowHeadersVisible = false;
-            dataGridView1.Size = new Size(325, 178);
+            dataGridView1.Size = new Size(322, 254);
             dataGridView1.TabIndex = 4;
-            dataGridView1.MouseClick += dataGridView1_MouseClick;
+            dataGridView1.Click += dataGridView1_Click;
             // 
             // trackBarJogShuttle
             // 
@@ -224,6 +228,7 @@
             trackBarJogShuttle.Name = "trackBarJogShuttle";
             trackBarJogShuttle.Size = new Size(335, 45);
             trackBarJogShuttle.TabIndex = 1;
+            trackBarJogShuttle.Click += trackBarJogShuttle_Click;
             trackBarJogShuttle.Scroll += trackBarJogShuttle_Scroll;
             trackBarJogShuttle.MouseUp += trackBarJogShuttle_MouseUp;
             // 
@@ -231,14 +236,13 @@
             // 
             videoView1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             videoView1.BackColor = Color.Black;
-            videoView1.Location = new Point(39, 0);
+            videoView1.Location = new Point(3, 0);
             videoView1.MediaPlayer = null;
             videoView1.Name = "videoView1";
-            videoView1.Size = new Size(1107, 560);
+            videoView1.Size = new Size(1143, 560);
             videoView1.TabIndex = 5;
             videoView1.Text = "videoView1";
             videoView1.DoubleClick += pnlVIDEO_DoubleClick;
-            videoView1.MouseClick += pnlVIDEO_MouseClick;
             videoView1.MouseDown += pnlVIDEO_MouseDown;
             videoView1.MouseMove += pnlVIDEO_MouseMove;
             videoView1.MouseUp += pnlVIDEO_MouseUp;
@@ -402,6 +406,7 @@
         private TrackBar trackBarSpeed;
         private Panel pnlVIDEO;
         private Panel pnlVideoFull;
+     // private SemiTransparentPanel pnlVideoFull;
         private Panel pnlVideoZoom;
         private TrackBar trackBarJogShuttle;
         private DataGridView dataGridView1;
