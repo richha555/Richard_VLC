@@ -37,6 +37,7 @@
             trackBarPlayHead = new TrackBar();
             trackBarSpeed = new TrackBar();
             pnlVIDEO = new Panel();
+            labSpeed = new Label();
             pnlVideoFull = new Panel();
             pnlVideoZoom = new Panel();
             dataGridView1 = new DataGridView();
@@ -65,6 +66,7 @@
             toolStripSeparator4 = new ToolStripSeparator();
             selectAllToolStripMenuItem = new ToolStripMenuItem();
             openFileDialog1 = new OpenFileDialog();
+            labMarker = new Label();
             ((System.ComponentModel.ISupportInitialize)trackBarPlayHead).BeginInit();
             ((System.ComponentModel.ISupportInitialize)trackBarSpeed).BeginInit();
             pnlVIDEO.SuspendLayout();
@@ -166,6 +168,8 @@
             // 
             // pnlVIDEO
             // 
+            pnlVIDEO.Controls.Add(labMarker);
+            pnlVIDEO.Controls.Add(labSpeed);
             pnlVIDEO.Controls.Add(pnlVideoFull);
             pnlVIDEO.Controls.Add(dataGridView1);
             pnlVIDEO.Controls.Add(trackBarSpeed);
@@ -187,6 +191,20 @@
             pnlVIDEO.MouseMove += pnlVIDEO_MouseMove;
             pnlVIDEO.MouseUp += pnlVIDEO_MouseUp;
             pnlVIDEO.MouseWheel += pnlVIDEO_MouseWheel;
+            // 
+            // labSpeed
+            // 
+            labSpeed.AutoSize = true;
+            labSpeed.BackColor = Color.DimGray;
+            labSpeed.FlatStyle = FlatStyle.Flat;
+            labSpeed.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            labSpeed.ForeColor = Color.Red;
+            labSpeed.Location = new Point(32, 258);
+            labSpeed.Name = "labSpeed";
+            labSpeed.Size = new Size(15, 15);
+            labSpeed.TabIndex = 6;
+            labSpeed.Text = "<";
+            labSpeed.Visible = false;
             // 
             // pnlVideoFull
             // 
@@ -230,6 +248,7 @@
             trackBarJogShuttle.TabIndex = 1;
             trackBarJogShuttle.Click += trackBarJogShuttle_Click;
             trackBarJogShuttle.Scroll += trackBarJogShuttle_Scroll;
+            trackBarJogShuttle.MouseDown += trackBarJogShuttle_MouseDown;
             trackBarJogShuttle.MouseUp += trackBarJogShuttle_MouseUp;
             // 
             // videoView1
@@ -370,6 +389,20 @@
             // 
             openFileDialog1.FileName = "openFileDialog1";
             // 
+            // labMarker
+            // 
+            labMarker.AutoSize = true;
+            labMarker.BackColor = SystemColors.Control;
+            labMarker.FlatStyle = FlatStyle.Flat;
+            labMarker.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            labMarker.ForeColor = Color.Red;
+            labMarker.Location = new Point(235, 592);
+            labMarker.Name = "labMarker";
+            labMarker.Size = new Size(15, 15);
+            labMarker.TabIndex = 7;
+            labMarker.Text = "^";
+            labMarker.Visible = false;
+            // 
             // REH_VLC_Viewer
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -381,6 +414,7 @@
             Text = "Richard's VLC Viewer";
             FormClosing += Form1_FormClosing;
             Load += Form1_Load;
+            SizeChanged += REH_VLC_Viewer_SizeChanged;
             ((System.ComponentModel.ISupportInitialize)trackBarPlayHead).EndInit();
             ((System.ComponentModel.ISupportInitialize)trackBarSpeed).EndInit();
             pnlVIDEO.ResumeLayout(false);
@@ -434,5 +468,7 @@
         private ToolStripSeparator toolStripSeparator4;
         private ToolStripMenuItem selectAllToolStripMenuItem;
         private OpenFileDialog openFileDialog1;
+        private Label labSpeed;
+        private Label labMarker;
     }
 }

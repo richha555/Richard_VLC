@@ -2,6 +2,7 @@ using System.Data;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using LibVLCSharp.Shared;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace Richard_VLC
 {
@@ -11,12 +12,16 @@ namespace Richard_VLC
         {
             to_begin = 0, play = 1, pause = 2, stop = 3, to_end = 4, single_forw = 5, single_back = 6
         }
+        public enum play_state
+        {
+            stopped, paused, playing
+        }
         public enum run_state
         {
-            simulate, // playhead moves with each tick
-            vlc,      // VLC control playhead
-            user,     // user controls playhead
-            paused    // lock playhead
+            simulate,    // playhead moves with each tick
+            vlc,         // VLC control playhead
+            user,        // user controls playhead
+            paused       // lock playhead
         }
 
         public class cVideoDim
@@ -27,13 +32,24 @@ namespace Richard_VLC
             public double wdt_hgt { get; set; } = 0.0;
 
         }
+        public class cVideo
+        {
+            public string full_path { get; set; } = "";
+            public string file_name { get; set; } = "";
+            public string title { get; set; } = "";
+        }
+        public cVideo current_video = new cVideo();
         public cVideoDim video_dimensions = new cVideoDim();
+
+        public bool video_loaded = false;
         public double frame_rate = 30.0;  // frames per second
         public long video_length_frames = 0; //  (int)(frame_rate * 60.0 * 5.0);  // frames
         public double video_length_ms = 0;
         public double current_pos = 0.0; // current frame
         public TimeSpan current_time = new TimeSpan(0); // current offset
         public double current_speed = 1.0;
+
+        public bool super_slow = false;
 
         public bool auto_play_on_load = true;
 
@@ -62,6 +78,9 @@ namespace Richard_VLC
 
         private int startWidth;
         private int startHeight;
+
+        private int topSpeedMarker = 200;
+        private int botSpeedMarker = 100;
 
 
         public double speed_1 = 0.7;
@@ -97,14 +116,15 @@ namespace Richard_VLC
 
         public bool dragging_box = false;
 
-        public string video_file = "";
-
         public bool isFullscreen = false;
         public bool isPlaying = false;
         public Size oldVideoSize;
         public Size oldFormSize;
         public Point oldVideoLocation;
         private bool _updatingPlayHead = false;
+
+        Dictionary<double, Label> speedLabels = new();
+        Dictionary<double, Label> trackMarkers = new();
 
         public LibVLC _libVLC;
         public MediaPlayer _mp;
@@ -116,6 +136,8 @@ namespace Richard_VLC
         {
             InitializeComponent();
         }
+
+        // ================================================================================================================== BACKGROUND LOOP
 
         private async Task RunBackgroundTaskAsync()
         {
@@ -129,24 +151,26 @@ namespace Richard_VLC
                     double pos = this.current_pos;
                     TimeSpan tpos = this.current_time;
 
-                    if (this.CURRENT_RUN_STATE == run_state.simulate) {
+                    if (this.CURRENT_RUN_STATE == run_state.simulate || this.CURRENT_RUN_STATE == run_state.user || this.super_slow) {
 
                         // ------------------------------------------------------ we move the playhead on each tick
 
+                        tpos = new TimeSpan(0);
+
                         if (this.single_framing_forward) {
                             pos += 0.5;  // 1/2 frame per 500 ms
-                            tpos = tpos.Add(TimeSpan.FromMilliseconds(500));
+                            //tpos = tpos.Add(TimeSpan.FromMilliseconds(500));
                         } else if (this.single_framing_backward) {
                             pos -= 0.5;
-                            tpos = tpos.Add(TimeSpan.FromMilliseconds(-500));
-                        } else if (this.playing && !this.paused) {
+                            //tpos = tpos.Add(TimeSpan.FromMilliseconds(-500));
+                        } else if ((this.playing && !this.paused) || this.super_slow) {
                             double fr = 0.5 * (this.frame_rate * this.current_speed);
                             if (this.reverse_motion) {
                                 pos -= fr;
-                                tpos = TimeSpan.FromSeconds(pos / this.frame_rate);
+                                //tpos = TimeSpan.FromSeconds(pos / this.frame_rate);
                             } else {
                                 pos += fr;
-                                tpos = TimeSpan.FromSeconds(pos / this.frame_rate);
+                                //tpos = TimeSpan.FromSeconds(pos / this.frame_rate);
                             }
                         }
                     } else if (this.CURRENT_RUN_STATE == run_state.vlc) {
@@ -161,22 +185,30 @@ namespace Richard_VLC
                                                Fps,
                                                Length);
 
+                        pos = -1;
+                        tpos = new TimeSpan(0);
+
                         // this.current_pos = this.video_length * this._mp.Position;
                         // var pos_secs = this.current_pos / this.frame_rate;
                         // this.current_time = TimeSpan.FromSeconds((double)this._mp.Time / 1000.0);
 
                         if (this.good_length) {
+                            // VLC pos is not the best, it's from 0.0 to 1.0
+                            // where 1.0 is the length of the video
                             pos = (double)this.video_length_frames * (this._mp?.Position ?? 0.0);
                         }
+                        // VLC tpos is much better because it's millisec's from start
+                        // however, it's empty more than it's set
                         long time_ms = this._mp?.Time ?? -1;
-                        if (time_ms < 0) {
-                            if (this.good_framerate) {
-                                tpos = TimeSpan.FromSeconds(pos / this.frame_rate);
-                            } else {
-                                tpos = new TimeSpan(0); // only know relative-position
-                            }
+                        if (time_ms <= 0) {
+                            //if (this.good_framerate) {
+                            //    tpos = TimeSpan.FromSeconds(pos / this.frame_rate);
+                            //} else {
+                            //    tpos = new TimeSpan(0); // only know relative-position
+                            //}
                         } else {
                             tpos = TimeSpan.FromMilliseconds(time_ms);
+                            pos = -1;  // make sure Set_Current_Pos uses time_ms
                         }
 
                     } else if (this.CURRENT_RUN_STATE == run_state.paused) {
@@ -184,7 +216,11 @@ namespace Richard_VLC
                         // ------------------------------------------------------ user is controlling playhead
                     }
 
-                    Set_Current_Pos(pos,tpos, update_playhead: true, seek_in_video: false);
+                    if (this.CURRENT_RUN_STATE == run_state.user || this.super_slow) {
+                        Set_Current_Pos(pos, tpos, update_playhead: true, seek_in_video: true);
+                    } else {
+                        Set_Current_Pos(pos, tpos, update_playhead: true, seek_in_video: false);
+                    }
 
                     if (!this.show_zoom_viewer && this.pnlVideoFull.Visible) {
                         DateTime now = DateTime.Now;
@@ -193,25 +229,25 @@ namespace Richard_VLC
                         }
                     }
 
-                    if (!lock_track_speed && !this.show_track_speed && this.trackBarSpeed.Visible) {
+                    if (!this.lock_track_speed && !this.show_track_speed && this.trackBarSpeed.Visible) {
                         DateTime now = DateTime.Now;
                         if ((now - this.lastTrackSpeed).TotalSeconds > 0.5) { // hide after N secs
-                            this.trackBarSpeed.Visible = false;
+                            show_hide_speed(false);
                         }
                     }
-                    if (!lock_info && !this.show_info && this.dataGridView1.Visible) {
+                    if (!this.lock_info && !this.show_info && this.dataGridView1.Visible) {
                         DateTime now = DateTime.Now;
                         if ((now - this.lastInfo).TotalSeconds > 0.5) { // hide after N secs
                             this.dataGridView1.Visible = false;
                         }
                     }
-                    if (!lock_jog_shuttle && !this.show_jog_shuttle && this.trackBarJogShuttle.Visible) {
+                    if (!this.lock_jog_shuttle && !this.show_jog_shuttle && this.trackBarJogShuttle.Visible) {
                         DateTime now = DateTime.Now;
                         if ((now - this.lastJogShuttle).TotalSeconds > 0.5) { // hide after N secs
                             this.trackBarJogShuttle.Visible = false;
                         }
                     }
-                    if (!lock_play_head && !this.show_play_head && this.trackBarPlayHead.Visible) {
+                    if (!this.lock_play_head && !this.show_play_head && this.trackBarPlayHead.Visible) {
                         DateTime now = DateTime.Now;
                         if ((now - this.lastPlayHead).TotalSeconds > 0.5) { // hide after N secs
                             this.trackBarPlayHead.Visible = false;
@@ -220,6 +256,88 @@ namespace Richard_VLC
                 }
             } catch (OperationCanceledException) {
                 // Normal shutdown.
+            }
+        }
+
+        // ================================================================================================================== UTILS
+
+        private void Set_Current_Pos(double pos, TimeSpan tpos, bool update_playhead = true, bool seek_in_video = true)
+        {
+            if (this.video_length_frames <= 0 || this.frame_rate <= 0) return;
+
+            bool have_pos = pos > 0;
+            bool have_tpos = tpos.TotalMilliseconds > 0;
+
+            // if we are given a tpos, we should use it   tpos => pos
+            // else calculate tpos from pos               pos => tpos
+
+            if (have_tpos) {
+                // have tpos ... use it
+                this.current_time = tpos; // tpos was passed in, use it
+                // tpos = pos / fr
+                // pos = tpos * fr
+                pos = this.frame_rate * (tpos.TotalMilliseconds / 1000.0);
+            } else {
+                // no tpos ... use pos
+                this.current_time = TimeSpan.FromSeconds(Math.Max(0.0, pos) / this.frame_rate);
+            }
+            this.current_pos = Math.Min(Math.Max(0.0, pos), (double)this.video_length_frames);
+
+            if (seek_in_video) {
+                if (this.video_loaded) {
+                    Debug.WriteLine($"Set_Current_Pos:  SEEK-TO: {this.current_time}");
+                    this.videoView1?.MediaPlayer?.SeekTo(this.current_time);
+                }
+            }
+            if (update_playhead) {
+                this._updatingPlayHead = true;
+                this.trackBarPlayHead.Value = (int)Math.Min(Math.Max((double)this.trackBarPlayHead.Minimum, pos), (double)this.trackBarPlayHead.Maximum);
+                this._updatingPlayHead = false;
+            }
+
+            Update_Value("current_pos");
+            Update_Value("current_time");
+        }
+
+        private void Set_Play_State(play_state PlayState)
+        {
+            switch (PlayState) {
+                case play_state.stopped:  // [play]
+                    // playing   Play => STOP
+                    this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
+                    this.toolTip1.SetToolTip(this.butPlay, "Click to PLAY");
+                    this.butStop.Visible = false;
+                    this.playing = false;
+                    this.paused = false;
+                    this.reverse_motion = false;
+                    this.single_framing_forward = false;
+                    this.single_framing_backward = false;
+                    break;
+                case play_state.playing:  // [pause]   [stop]
+                    this.butPlay.Image = this.imageList1.Images[(int)button_image.pause];
+                    this.toolTip1.SetToolTip(this.butPlay, "Click to PAUSE");
+                    this.butStop.Visible = true;
+                    this.playing = true;
+                    this.paused = false;
+                    break;
+                case play_state.paused:   // [resume]  [stop]
+                    // playing   Play => PAUSE
+                    this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
+                    this.toolTip1.SetToolTip(this.butPlay, "Click to PLAY");
+                    this.butStop.Visible = true;
+                    this.playing = true;
+                    this.paused = true;
+                    break;
+            }
+            Update_Value("mode");
+            Update_Value("reverse_motion");
+        }
+
+        private void show_hide_speed(bool is_visible)
+        {
+            this.trackBarSpeed.Visible = is_visible;
+            foreach (var lab in this.speedLabels.Values) {
+                lab.Visible = is_visible;
             }
         }
 
@@ -261,6 +379,9 @@ namespace Richard_VLC
                 if (good_framerate) {
                     this.frame_rate = fps;
                     Update_Value("frame_rate");
+
+                    drawSpeedMarkers();
+
                     if (this.good_length) {
                         // we are receiving the length in milliseconds way before frame-rate
                         // (re)-calculate length in frames when we know both
@@ -286,68 +407,227 @@ namespace Richard_VLC
             }
         }
 
+        public cVideoDim GetHeightWidthRatio(string? AspectRatio)
+        {
+            cVideoDim video_dim = new cVideoDim();
+
+            if (string.IsNullOrWhiteSpace(AspectRatio)) {
+                return video_dim;
+            }
+            try {
+                Match match = Regex.Match(
+                    AspectRatio,
+                    @"^\s*(\d+)\s*:\s*(\d+)\s*$");
+
+                if (!match.Success)
+                    return video_dim;
+
+                double width = double.Parse(match.Groups[1].Value);
+                double height = double.Parse(match.Groups[2].Value);
+
+                if ((width <= 1.0) || (height <= 1.0))
+                    return video_dim;
+
+                video_dim.height = (int)height;
+                video_dim.width = (int)width;
+
+                video_dim.hgt_wdt = height / width;
+                video_dim.wdt_hgt = width / height;
+            } catch {
+                video_dim.height = video_dim.width = 0;
+                video_dim.hgt_wdt = video_dim.wdt_hgt = 0.0;
+
+                return video_dim;
+            }
+            return video_dim;
+        }
+
+        // ================================================================================================================== OPEN
+
+        private async void openToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            this.openFileDialog1.Title = "Select VIDEO to play";
+            this.openFileDialog1.InitialDirectory = "G:\\";
+
+            if (this.openFileDialog1.ShowDialog() == DialogResult.OK) {
+
+                this.current_video.full_path = this.openFileDialog1.FileName;
+
+                this.Text = "Richard's VLC Viewer - " + this.current_video.full_path;
+
+                if (this.playing || this.paused) {
+                    if (video_loaded) {
+                        this.videoView1?.MediaPlayer?.Stop();
+                    }
+                }
+
+                Set_Play_State(play_state.stopped);
+
+                //    FileInfo fi = new FileInfo(this.video_file);
+                //    this.videoView1.SetMedia(fi);
+
+
+                using var media = new Media(this._libVLC, this.current_video.full_path);
+
+
+                this.start_run_state = run_state.paused;
+                this.CURRENT_RUN_STATE = run_state.paused;  // VLC owns playhead
+
+                // VIDEO properties are usually empty until video actually starts playing
+
+                this.good_aspect = false;
+                this.good_framerate = false;
+                this.good_length = false;
+
+                string AspectRatio = ""; // this._mp?.AspectRatio ?? "";
+                long length = 0; //         this._mp?.Length ?? 0;
+                float fps = 0; //           this._mp?.Fps ?? 0;
+
+                await media.Parse(MediaParseOptions.ParseLocal, -1, CancellationToken.None); // MediaPlayer usually doe not return any info.  fetch it by hand
+
+                if (string.IsNullOrWhiteSpace(AspectRatio)) {
+                    var tracks = media.Tracks;
+                    foreach (var track in tracks) {
+                        if (track.TrackType == TrackType.Video) {
+                            AspectRatio = string.Format("{0}:{1}", track.Data.Video.Width, track.Data.Video.Height);
+                            break;
+                        }
+                    }
+                }
+                if (length <= 0) {
+                    length = media.Duration;
+                }
+
+                fetch_video_properties(AspectRatio, fps, length);
+
+                if (!this.good_aspect) {
+                    // AspectRatio unknown -- assume 16:9
+
+                    var aspect_ratio = (9.0 / 16.0);
+
+                    // 16:9: 0,5625  The standard widescreen format for modern TVs, computer monitors, and YouTube videos.
+                    // 4:3:  0,75    The older "box-like" standard used for vintage televisions and early computer screens.
+                    // 1:1:  1,00    A completely square format often used for profile pictures and social media posts.
+                    // 9:16: 1,7777  A vertical format used for mobile stories and phone
+
+                    // less than 0,5 conserve width & adjust height
+                    // greater than 1.0 conserve height & adjust width
+
+                    if (aspect_ratio < 0.6) {
+                        this.pnlVideoFull.Width = this.startWidth;
+                        this.pnlVideoFull.Height = (int)(aspect_ratio * (double)this.startWidth);
+                    } else {
+                        this.pnlVideoFull.Height = this.startHeight;
+                        this.pnlVideoFull.Width = (int)((double)this.startHeight / aspect_ratio);
+                    }
+                }
+                this.pnlVideoZoom.Width = this.pnlVideoFull.Width;
+                this.pnlVideoZoom.Height = this.pnlVideoFull.Height;
+
+                this.videoZoomWidth = this.pnlVideoZoom.Width;
+                this.videoZoomAspect = (double)this.pnlVideoZoom.Width / (double)this.pnlVideoZoom.Height;
+
+                // -------------------------------------
+
+                if (!this.good_framerate) {
+                    // invent a frame-rate, but don't set good_framerate = true
+                    this.frame_rate = 30.0;  // hopefully this is correct !!
+                    Update_Value("frame_rate");
+
+                    drawSpeedMarkers();
+                }
+
+                if (!this.good_length) {
+                    // invent a length, but don't set good_length = true
+                    this.video_length_frames = (int)(this.frame_rate * 60.0 * 5.0);   // assume 5.0 minute long video
+                    trackBarPlayHead.Maximum = (int)this.video_length_frames;
+                    Update_Value("length");
+                }
+
+                //this.current_pos = this.video_length * this._mp.Position;
+                //var pos_secs = this.current_pos / this.frame_rate;
+                //this.current_time = TimeSpan.FromSeconds((double)this._mp.Time / 1000.0);
+
+                double pos = 0;  // assume playhead is @ beginning
+
+                Set_Current_Pos(pos, new TimeSpan(0), update_playhead: true, seek_in_video: false);
+
+                //for (int i = 1; i <= 2; i++) {
+                //    bool vis = i == 1 ? false : true;
+                //    this.trackBarPlayHead.Visible = vis;
+                //    this.butBegin.Visible = vis;
+                //    this.butSingleBack.Visible = vis;
+                //    this.butPlay.Visible = vis;
+                //    this.butSingleFwd.Visible = vis;
+                //    this.butStop.Visible = vis;  // playing ***
+                //    this.trackBarJogShuttle.Visible = vis;
+                //    this.trackBarSpeed.Visible = vis;
+                //    this.dataGridView1.Visible = vis;
+                //}
+
+                Zoom_Full();
+
+                this.start_run_state = run_state.vlc;
+                this.CURRENT_RUN_STATE = run_state.vlc;  // VLC owns playhead (*** should wait until video starts playing)
+
+                this._mp?.Media = media;  // now assign Media object to Player
+
+                this.video_loaded = true;
+
+                if (auto_play_on_load) {
+
+                    this.videoView1?.MediaPlayer?.Play();
+
+                    Set_Play_State(play_state.playing);
+                }
+            }
+        }
+
+        // ================================================================================================================== BUTTONS
+
         private void butBegin_Click(object sender, EventArgs e)
         {
-            if (this.CURRENT_RUN_STATE == run_state.vlc) {
+            Button_Begin();
+        }
+        private void Button_Begin()
+        { 
+            if (this.video_loaded) {
                 this.videoView1?.MediaPlayer?.SeekTo(new TimeSpan(0));
             }
-            Set_Current_Pos(0.0,new TimeSpan(0), update_playhead: true, seek_in_video: true);
+            Set_Current_Pos(0.0, new TimeSpan(0), update_playhead: true, seek_in_video: true);
         }
 
         private void butPlay_Click(object sender, EventArgs e)
         {
-
+            Button_Play_Pause();
+        }
+        private void Button_Play_Pause()
+        { 
             if (this.playing && !this.paused) {
                 // playing   Play => PAUSE
-                if (this.CURRENT_RUN_STATE == run_state.vlc) {
+                if (this.video_loaded) {
                     this.videoView1?.MediaPlayer?.Pause();
                 }
-
-                this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
-                this.toolTip1.SetToolTip(this.butPlay, "Click to PLAY");
-                this.paused = true;
+                Set_Play_State(play_state.paused);
             } else {
                 // not playing   Play => PLAY
-                if (this.CURRENT_RUN_STATE == run_state.vlc) {
+                if (this.video_loaded) {
                     this.videoView1?.MediaPlayer?.Play();
                 }
-
-                this.butPlay.Image = this.imageList1.Images[(int)button_image.pause];
-                this.toolTip1.SetToolTip(this.butPlay, "Click to PAUSE");
-                this.butStop.Visible = true;
-                this.playing = true;
-                this.paused = false;
-                this.reverse_motion = false;
+                Set_Play_State(play_state.playing);
             }
-            Update_Value("mode");
-            Update_Value("reverse_motion");
         }
 
         private void butStop_Click(object sender, EventArgs e)
         {
-            if (this.CURRENT_RUN_STATE == run_state.vlc) {
+            Button_Stop();
+        }
+        private void Button_Stop()
+        { 
+            if (this.video_loaded) {
                 this.videoView1?.MediaPlayer?.Stop();
             }
-
-            if (this.playing && !this.paused) {
-                this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
-                this.toolTip1.SetToolTip(this.butPlay, "Click to PLAY");
-                this.playing = false;
-                this.paused = false;
-                this.single_framing_forward = false;
-                this.single_framing_backward = false;
-            } else if (this.paused) {
-                this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
-                this.toolTip1.SetToolTip(this.butPlay, "Click to PLAY");
-                this.playing = false;
-                this.paused = false;
-                this.single_framing_forward = false;
-                this.single_framing_backward = false;
-            }
-            Update_Value("mode");
-            Update_Value("reverse_motion");
-
-            this.butStop.Visible = false; // *** should hide it with a timer
+            Set_Play_State(play_state.stopped);
 
             //  Set_Current_Pos(0);   ... don't do this it's annoying
         }
@@ -357,47 +637,84 @@ namespace Richard_VLC
         }
         private void butSingleBack_MouseDown(object sender, MouseEventArgs e)
         {
-            if (this.playing && !this.paused) {
-                // playing   Play => PAUSE
-                if (this.CURRENT_RUN_STATE == run_state.vlc) {
-                    this.videoView1?.MediaPlayer?.Pause();
-                }
-                this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
-                this.toolTip1.SetToolTip(this.butPlay, "Click to PLAY");
-                this.paused = true;
-                Update_Value("mode");
-            } else if (!playing) {
-                this.playing = true;
-                this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
-                this.toolTip1.SetToolTip(this.butPlay, "Click to PLAY");
-                this.butStop.Visible = true;
-                this.paused = true;
-                Update_Value("mode");
-            }
-            this.start_run_state = this.CURRENT_RUN_STATE;
-            this.CURRENT_RUN_STATE = run_state.simulate;
-            this.single_framing_backward = true;
-            Update_Value("mode");
+            Button_Back_Start();
+        }
+
+        private void Button_Back_Start()
+        { 
+            //if (this.playing && !this.paused) {
+            //    // playing   Play => PAUSE
+            //    if (this.CURRENT_RUN_STATE == run_state.vlc) {
+            //        this.videoView1?.MediaPlayer?.Pause();
+            //    }
+            //    this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
+            //    this.toolTip1.SetToolTip(this.butPlay, "Click to PLAY");
+            //    this.paused = true;
+            //    Update_Value("mode");
+            //} else if (!playing) {
+            //    this.playing = true;
+            //    this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
+            //    this.toolTip1.SetToolTip(this.butPlay, "Click to PLAY");
+            //    this.butStop.Visible = true;
+            //    this.paused = true;
+            //    Update_Value("mode");
+            //}
+            //this.start_run_state = this.CURRENT_RUN_STATE;
+            //this.CURRENT_RUN_STATE = run_state.simulate;
+            //this.single_framing_backward = true;
+            //Update_Value("mode");
 
             if (Math.Abs(this.current_pos) < 0.5) {
                 return;
             }
             if (this.current_pos <= 0) {
-                Set_Current_Pos(0.0,new TimeSpan(0), update_playhead: true, seek_in_video: true);
+                Set_Current_Pos(0.0, new TimeSpan(0), update_playhead: true, seek_in_video: true);
                 return;
             }
+
+            if (this.playing && !this.paused) {
+                // playing   Play => PAUSE
+                if (this.video_loaded) {
+                    this.videoView1?.MediaPlayer?.Pause();
+                }
+                Set_Play_State(play_state.paused);
+            }
+
+            // we make the first move
+
             double pos = this.current_pos - 1.0;
             TimeSpan tpos = new TimeSpan(0);
-            if (this.frame_rate > 0)
-                tpos = TimeSpan.FromSeconds(pos / this.frame_rate);
+            //if (this.frame_rate > 0)
+            //    tpos = TimeSpan.FromSeconds(pos / this.frame_rate);
 
-            Set_Current_Pos(pos,tpos, update_playhead: true, seek_in_video: true);
+            Set_Current_Pos(pos, tpos, update_playhead: true, seek_in_video: true);
+
+            // now let timer take over, until we release mouse button
+
+            this.hold_playing = this.playing;
+            this.hold_paused = this.paused;
+
+            this.playing = true;  // tell timer to process ticks
+            this.paused = false;
+
+            this.single_framing_backward = true;
+
+            this.start_run_state = this.CURRENT_RUN_STATE;
+            this.CURRENT_RUN_STATE = run_state.user;    // timer controls playhead
         }
 
         private void butSingleBack_MouseUp(object sender, MouseEventArgs e)
         {
+            Button_Back_End();
+        }
+        private void Button_Back_End()
+        { 
+            this.playing = this.hold_playing;
+            this.paused = this.hold_paused;
+
             this.CURRENT_RUN_STATE = this.start_run_state;
             this.single_framing_backward = false;
+
             Update_Value("mode");
         }
 
@@ -406,48 +723,85 @@ namespace Richard_VLC
         }
         private void butSingleFwd_MouseDown(object sender, MouseEventArgs e)
         {
-            if (this.playing && !this.paused) {
-                // playing   Play => PAUSE
-                if (this.CURRENT_RUN_STATE == run_state.vlc) {
-                    this.videoView1?.MediaPlayer?.Pause();
-                }
-                // playing   Play => PAUSE
-                this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
-                this.toolTip1.SetToolTip(this.butPlay, "Click to PLAY");
-                this.paused = true;
-                Update_Value("mode");
-            } else if (!playing) {
-                this.playing = true;
-                this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
-                this.toolTip1.SetToolTip(this.butPlay, "Click to PLAY");
-                this.butStop.Visible = true;
-                this.paused = true;
-                Update_Value("mode");
-            }
-            this.start_run_state = this.CURRENT_RUN_STATE;
-            this.CURRENT_RUN_STATE = run_state.simulate;
-            this.single_framing_forward = true;
-            Update_Value("mode");
+            Button_Forward_Start();
+        }
+        private void Button_Forward_Start()
+        { 
+            //if (this.playing && !this.paused) {
+            //    // playing   Play => PAUSE
+            //    if (this.CURRENT_RUN_STATE == run_state.vlc) {
+            //        this.videoView1?.MediaPlayer?.Pause();
+            //    }
+            //    // playing   Play => PAUSE
+            //    this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
+            //    this.toolTip1.SetToolTip(this.butPlay, "Click to PLAY");
+            //    this.paused = true;
+            //    Update_Value("mode");
+            //} else if (!playing) {
+            //    this.playing = true;
+            //    this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
+            //    this.toolTip1.SetToolTip(this.butPlay, "Click to PLAY");
+            //    this.butStop.Visible = true;
+            //    this.paused = true;
+            //    Update_Value("mode");
+            //}
+            //this.start_run_state = this.CURRENT_RUN_STATE;
+            //this.CURRENT_RUN_STATE = run_state.simulate;
+            //this.single_framing_forward = true;
+            //Update_Value("mode");
 
             if ((int)this.current_pos >= this.video_length_frames) {
                 return;
             }
+
+            if (this.playing && !this.paused) {
+                // playing   Play => PAUSE
+                if (this.video_loaded) {
+                    this.videoView1?.MediaPlayer?.Pause();
+                }
+                Set_Play_State(play_state.paused);
+            }
+
+            // we make the first move
+
             // *** for moving forward one frame, there is a command
             // *** that we could use INSTEAD of calculating pos & tpos
             double pos = this.current_pos + 1.0;
             TimeSpan tpos = new TimeSpan(0);
-            if (this.frame_rate > 0)
-                tpos = TimeSpan.FromSeconds(pos / this.frame_rate);
+            //if (this.frame_rate > 0)
+            //    tpos = TimeSpan.FromSeconds(pos / this.frame_rate);
 
             Set_Current_Pos(pos, tpos, update_playhead: true, seek_in_video: true);
+            // now let timer take over, until we release mouse button
+
+            this.hold_playing = this.playing;
+            this.hold_paused = this.paused;
+
+            this.playing = true;  // tell timer to process ticks
+            this.paused = false;
+
+            this.single_framing_forward = true;
+
+            this.start_run_state = this.CURRENT_RUN_STATE;
+            this.CURRENT_RUN_STATE = run_state.user;    // timer controls playhead
         }
 
         private void butSingleFwd_MouseUp(object sender, MouseEventArgs e)
         {
+            Button_Forward_End();
+        }
+        private void Button_Forward_End()
+        { 
+            this.playing = this.hold_playing;
+            this.paused = this.hold_paused;
+
             this.CURRENT_RUN_STATE = this.start_run_state;
             this.single_framing_forward = false;
+
             Update_Value("mode");
         }
+
+        // ================================================================================================================== TRACK-BARS
 
         private void trackBarPlayHead_Scroll(object sender, EventArgs e)
         {
@@ -462,7 +816,8 @@ namespace Richard_VLC
 
             double pos = (double)myTB.Value;
 
-            TimeSpan tpos = TimeSpan.FromSeconds(pos / this.frame_rate);
+        //  TimeSpan tpos = TimeSpan.FromSeconds(pos / this.frame_rate);
+            TimeSpan tpos = new TimeSpan(0);
 
             Set_Current_Pos(pos, tpos, update_playhead: false, seek_in_video: true);
 
@@ -470,6 +825,267 @@ namespace Richard_VLC
 
             Update_Value("current_pos");
             Update_Value("current_time");
+
+        }
+
+        private void trackBarJogShuttle_MouseDown(object sender, MouseEventArgs e)
+        {
+            //if (!this.playing) {
+            //    // go to PLAY
+            //    this.butPlay.Image = this.imageList1.Images[(int)button_image.pause];
+            //    this.toolTip1.SetToolTip(this.butPlay, "Click to PAUSE");
+            //    this.butStop.Visible = true;
+            //    this.playing = true;
+            //    this.paused = false;
+            //    Update_Value("mode");
+            //} else if (this.paused) {
+            //    // paused => PLAY
+            //    this.butPlay.Image = this.imageList1.Images[(int)button_image.pause];
+            //    this.toolTip1.SetToolTip(this.butPlay, "Click to PAUSE");
+            //    this.paused = false;
+            //    Update_Value("mode");
+            //}
+
+            this.hold_speed = this.current_speed;
+            this.hold_reverse = this.reverse_motion;
+            this.hold_playing = this.playing;
+            this.hold_paused = this.paused;
+
+            if (this.playing && !this.paused) {
+                // playing   Play => PAUSE
+                if (this.video_loaded) {
+                    this.videoView1?.MediaPlayer?.Pause();
+                }
+
+                // don't touch buttons, we'll return to play when finished 
+
+                this.playing = false;
+                this.paused = true;
+            }
+
+            this.playing = true;  // tell timer to process ticks
+            this.paused = false;
+
+            this.start_run_state = this.CURRENT_RUN_STATE;
+            this.CURRENT_RUN_STATE = run_state.user;    // timer controls playhead
+        }
+
+        private void trackBarJogShuttle_Scroll(object sender, EventArgs e)
+        {
+            System.Windows.Forms.TrackBar myTB = (System.Windows.Forms.TrackBar)sender;
+
+            double x = (double)myTB.Value;
+
+            double speed_offset = 10.0 * x / (double)trackBarJogShuttle.Maximum;
+
+            double fr_rate = this.frame_rate;
+
+            if (speed_offset < 0.0) {
+                fr_rate = this.frame_rate + (-1.0) * speed_offset * this.frame_rate;
+                this.reverse_motion = true;
+                Debug.WriteLine($"trackBarJogShuttle_Scroll: scroll back at {speed_offset} x normal speed => {fr_rate} frames per second");
+                this.current_speed = fr_rate / this.frame_rate;
+            } else {
+                fr_rate = this.frame_rate + speed_offset * this.frame_rate;
+                this.reverse_motion = false;
+                Debug.WriteLine($"trackBarJogShuttle_Scroll: scroll forward at {speed_offset} x normal speed => {fr_rate} frames per second");
+                this.current_speed = fr_rate / this.frame_rate;
+            }
+            Update_Value("current_speed");
+            Update_Value("reverse_motion");
+        }
+
+        private void trackBarJogShuttle_MouseUp(object sender, MouseEventArgs e)
+        {
+            trackBarJogShuttle.Value = 0;
+
+            //if ((this.hold_playing != this.playing) || (this.hold_paused != this.paused)) {
+            //    if (this.hold_paused) {
+            //        // go back to PAUSE mode
+            //        this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
+            //        this.toolTip1.SetToolTip(this.butPlay, "Click to PLAY");
+            //        this.paused = true;
+            //        Update_Value("mode");
+            //    } else if (!this.hold_playing) {
+            //        // go back to STOP mode
+            //        this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
+            //        this.toolTip1.SetToolTip(this.butPlay, "Click to PLAY");
+            //        this.playing = false;
+            //        this.paused = false;
+            //        Update_Value("mode");
+            //    }
+            //}
+
+            if (this.hold_speed == -9999) {
+                this.current_speed = 1;
+                this.reverse_motion = false;
+            } else {
+                this.current_speed = this.hold_speed;
+                this.reverse_motion = this.hold_reverse;
+                this.hold_speed = -9999;
+            }
+
+            Update_Value("current_speed");
+            Update_Value("reverse_motion");
+
+            this.CURRENT_RUN_STATE = this.start_run_state;
+
+            if (this.hold_playing && !this.hold_paused) {
+                // playing   Play => PAUSE
+                if (this.video_loaded) {
+                    this.videoView1?.MediaPlayer?.Play();
+                }
+                this.playing = true;
+                this.paused = false;
+            }
+        }
+
+        private void drawSpeedMarkers()
+        {
+            this.pnlVIDEO.SuspendLayout();
+            //SuspendLayout();
+
+            Label lab;
+
+            lab = drawSpeedMarker(2.0, Color.Blue);  this.topSpeedMarker = lab.Location.Y;
+            lab = drawSpeedMarker(1.0, Color.White);
+            lab = drawSpeedMarker(0.5, Color.Red);
+            lab = drawSpeedMarker(0.25, Color.Red);
+
+            // 1 sec_fr = 1.0 / (frame_rate * s)
+            // N = 1 / (fr * s)
+            // fr * s = 1 / N
+            // s = 1 / (fr * N)
+
+            for (int N = 1; N <= 5; N++) {
+                double s = 1.0 / (this.frame_rate * (double)N);
+                lab = drawSpeedMarker(s, Color.Magenta);
+                if (N == 5) {
+                    this.botSpeedMarker = lab.Location.Y;
+                }
+            }
+
+            this.pnlVIDEO.ResumeLayout(false);
+            this.pnlVIDEO.PerformLayout();
+            //ResumeLayout(false);
+            //PerformLayout();
+        }
+
+        private Label drawSpeedMarker(double speed, Color clr)
+        {
+            Label lab = new();
+
+            if (speed > (double)this.trackBarSpeed.Maximum || speed < 0.0) return lab;
+
+            int y0 = -1;
+            double last_speed = 0.0;
+            for (int y = 0; y <= (double)this.trackBarSpeed.Maximum; y++) {
+                double x = (double)y / (double)this.trackBarSpeed.Maximum;
+                double s = 0.004 * Math.Pow(1000, x);  // a = 0.004  b = 1000
+                if (s >= speed && last_speed <= speed) {
+                    y0 = y; break;
+                } else {
+                    last_speed = s;
+                }
+            }
+            //this.pnlVIDEO.SuspendLayout();
+
+            // Map the trackBar value (0..Maximum) to panel pixel coordinates so the
+            // marker lines up with the TrackBar visual position.
+            int pixelY = (int)Math.Round(((double)y0 / (double)this.trackBarSpeed.Maximum) * (double)this.trackBarSpeed.Height);
+            pixelY = this.trackBarSpeed.Location.Y + (this.trackBarSpeed.Height - pixelY) + 5;
+
+            //  bool have_lab = this.speedLabels.Any(l => l.Tag?.Equals(speed) ?? false);
+
+            if (this.speedLabels.ContainsKey(speed)) {
+                lab = this.speedLabels[speed];
+                lab.Location = new System.Drawing.Point(this.labSpeed.Location.X, pixelY);
+            } else {
+                lab.AutoSize = true;
+                lab.BackColor = this.labSpeed.BackColor;
+                lab.FlatStyle = labSpeed.FlatStyle;
+                lab.Font = labSpeed.Font;
+                lab.ForeColor = clr;
+                lab.Location = new System.Drawing.Point(this.labSpeed.Location.X, pixelY);
+                lab.Name = String.Format("labSpeed{0}", y0);
+                lab.Size = labSpeed.Size;
+                lab.Text = labSpeed.Text;
+                lab.Tag = speed;
+                lab.Visible = true;
+
+                this.pnlVIDEO.Controls.Add(lab);
+
+                // Ensure the dynamically added label is on top of other controls
+                // (some video rendering controls can appear above child controls).
+                lab.BringToFront();
+
+                this.speedLabels.Add(speed, lab);
+            }
+
+            //this.pnlVIDEO.ResumeLayout(false);
+            //this.pnlVIDEO.PerformLayout();
+            return lab;
+        }
+
+        private Label drawTrackMarker(double pos, Color clr)
+        {
+            Label lab = new();
+
+            double margin = 12.0;
+
+            if (pos > (double)this.trackBarPlayHead.Maximum || pos < 0.0) return lab;
+
+            int x0 = (int)((double)(this.trackBarPlayHead.Width - 2.0 * margin) * (pos / (double)this.trackBarPlayHead.Maximum));
+            x0 += (this.trackBarPlayHead.Left + (int)margin);
+            x0 -= (int)((double)this.labMarker.Width * 0.5);
+
+            //this.pnlVIDEO.SuspendLayout();
+
+            //  bool have_lab = this.posLabels.Any(l => l.Tag?.Equals(pos) ?? false);
+
+            if (this.trackMarkers.ContainsKey(pos)) {
+                lab = this.trackMarkers[pos];
+                lab.Location = new System.Drawing.Point(x0, this.labSpeed.Location.Y);
+            } else {
+                lab.AutoSize = true;
+                lab.BackColor = this.labMarker.BackColor;
+                lab.FlatStyle = labMarker.FlatStyle;
+                lab.Font = labMarker.Font;
+                lab.ForeColor = clr;
+                lab.Location = new System.Drawing.Point(x0, this.labMarker.Location.Y);
+                lab.Name = String.Format("labMarker{0}", x0);
+                lab.Size = labMarker.Size;
+                lab.Text = labMarker.Text;
+                lab.Tag = pos;
+                lab.Visible = true;
+
+                lab.Click += Label_Click;
+
+                this.pnlVIDEO.Controls.Add(lab);
+
+                // Ensure the dynamically added label is on top of other controls
+                // (some video rendering controls can appear above child controls).
+                lab.BringToFront();
+
+                this.trackMarkers.Add(pos, lab);
+            }
+
+            //this.pnlVIDEO.ResumeLayout(false);
+            //this.pnlVIDEO.PerformLayout();
+            return lab;
+        }
+
+        private void Label_Click(object? sender, EventArgs e)
+        {
+            Label lbl = (Label)sender;
+
+            Console.WriteLine($"Clicked label: {lbl.Name}");
+            Console.WriteLine($"Text: {lbl.Text}");
+
+            double pos = (double)lbl.Tag;
+            TimeSpan tpos = new TimeSpan(0);
+
+            Set_Current_Pos(pos, tpos, update_playhead: true, seek_in_video: true);
 
         }
 
@@ -506,6 +1122,14 @@ namespace Richard_VLC
             }
             this.reverse_motion = false; // go back to forward motion
 
+            if (this.video_loaded) {
+                if (fr_rate >= 1.0) {
+                    this._mp.SetRate((float)this.current_speed);
+                    this.super_slow = false;
+                } else {
+                    this.super_slow = true;
+                }
+            }
             Update_Value("reverse_motion");
             Update_Value("current_speed");
 
@@ -518,13 +1142,16 @@ namespace Richard_VLC
             DateTime now = DateTime.Now;
 
             if ((now - this.lasttrackBarSpeedMouseDown).TotalMilliseconds <= SystemInformation.DoubleClickTime) {
+
                 // Double-click detected
+
                 this.lasttrackBarSpeedMouseDown = DateTime.MinValue;
 
                 myTB.Value = (int)(speed_1 * (double)trackBarSpeed.Maximum);   // set marker at 100% speed
 
                 this.current_speed = 1.0;
                 this.reverse_motion = false; // go back to forward motion
+                this.super_slow = false;
 
                 Update_Value("reverse_motion");
                 Update_Value("current_speed");
@@ -534,86 +1161,38 @@ namespace Richard_VLC
 
             this.lasttrackBarSpeedMouseDown = now;
         }
-        private void trackBarJogShuttle_Scroll(object sender, EventArgs e)
+
+        public void ShortcutEvent(object? sender, KeyEventArgs e)
         {
-            System.Windows.Forms.TrackBar myTB = (System.Windows.Forms.TrackBar)sender;
-
-            if (this.hold_speed == -9999) {
-                this.hold_speed = this.current_speed;
-                this.hold_reverse = this.reverse_motion;
-                this.hold_playing = this.playing;
-                this.hold_paused = this.paused;
+            switch(e.KeyCode) {
+                case Keys.Escape:
+                    if (isFullscreen) {  // from fullscreen to window
+                        //this.FormBorderStyle = FormBorderStyle.Sizable; // change form style
+                        //this.WindowState = FormWindowState.Normal; // back to normal size
+                        //this.Size = oldFormSize;
+                        //menuStrip1.Visible = true; // the return of the menu strip 
+                        //videoView1.Size = oldVideoSize; // make video the same size as the form
+                        //videoView1.Location = oldVideoLocation; // remove the offset
+                        //isFullscreen = false;
+                    }
+                    break;
+                case Keys.Space: // Pause and Play
+                    Button_Play_Pause();
+                    break;
+                case Keys.J: // skip 1% backwa
+                case Keys.Left:
+                    Button_Back_Start();
+                    Button_Back_End();
+                    break;
+                case Keys.K: // skip 1% forwards
+                case Keys.Right:
+                    Button_Forward_Start();
+                    Button_Forward_End();
+                    break;
+                case Keys.OemPeriod:
+                    drawTrackMarker(this.current_pos, Color.Cyan);
+                    break;
             }
-
-            if (!this.playing) {
-                // go to PLAY
-                this.butPlay.Image = this.imageList1.Images[(int)button_image.pause];
-                this.toolTip1.SetToolTip(this.butPlay, "Click to PAUSE");
-                this.butStop.Visible = true;
-                this.playing = true;
-                this.paused = false;
-                Update_Value("mode");
-            } else if (this.paused) {
-                // paused => PLAY
-                this.butPlay.Image = this.imageList1.Images[(int)button_image.pause];
-                this.toolTip1.SetToolTip(this.butPlay, "Click to PAUSE");
-                this.paused = false;
-                Update_Value("mode");
-            }
-
-            double x = (double)myTB.Value;
-
-            double speed_offset = 10.0 * x / (double)trackBarJogShuttle.Maximum;
-
-            double fr_rate = this.frame_rate;
-
-            if (speed_offset < 0.0) {
-                fr_rate = this.frame_rate + (-1.0) * speed_offset * this.frame_rate;
-                this.reverse_motion = true;
-                Debug.WriteLine($"trackBarJogShuttle_Scroll: scroll back at {speed_offset} x normal speed => {fr_rate} frames per second");
-                this.current_speed = fr_rate / this.frame_rate;
-            } else {
-                fr_rate = this.frame_rate + speed_offset * this.frame_rate;
-                this.reverse_motion = false;
-                Debug.WriteLine($"trackBarJogShuttle_Scroll: scroll forward at {speed_offset} x normal speed => {fr_rate} frames per second");
-                this.current_speed = fr_rate / this.frame_rate;
-            }
-            Update_Value("current_speed");
-            Update_Value("reverse_motion");
-        }
-        private void trackBarJogShuttle_MouseUp(object sender, MouseEventArgs e)
-        {
-            trackBarJogShuttle.Value = 0;
-
-            if ((this.hold_playing != this.playing) || (this.hold_paused != this.paused)) {
-                if (this.hold_paused) {
-                    // go back to PAUSE mode
-                    this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
-                    this.toolTip1.SetToolTip(this.butPlay, "Click to PLAY");
-                    this.paused = true;
-                    Update_Value("mode");
-                } else if (!this.hold_playing) {
-                    // go back to STOP mode
-                    this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
-                    this.toolTip1.SetToolTip(this.butPlay, "Click to PLAY");
-                    this.playing = false;
-                    this.paused = false;
-                    Update_Value("mode");
-                }
-            }
-
-
-            if (this.hold_speed == -9999) {
-                this.current_speed = 1;
-                this.reverse_motion = false;
-            } else {
-                this.current_speed = this.hold_speed;
-                this.reverse_motion = this.hold_reverse;
-                this.hold_speed = -9999;
-            }
-
-            Update_Value("current_speed");
-            Update_Value("reverse_motion");
         }
 
         //private void dataGridView1_MouseClick(object sender, MouseEventArgs e)
@@ -623,31 +1202,7 @@ namespace Richard_VLC
         //    this.lock_info = true;
         //}
 
-        private void Set_Current_Pos(double pos, TimeSpan tpos, bool update_playhead = true, bool seek_in_video = true)
-        {
-            if (this.video_length_frames <= 0 || this.frame_rate <= 0) return;
-
-            this.current_pos = Math.Min(Math.Max(0.0, pos), (double)this.video_length_frames);
-            if (tpos.TotalMilliseconds <= 0 && pos > 0.0) {
-                this.current_time = TimeSpan.FromSeconds((double)this.current_pos / this.frame_rate);
-            } else {
-                this.current_time = tpos;
-            }
-
-            if (seek_in_video) {
-                if (this.start_run_state == run_state.vlc) {
-                    this.videoView1?.MediaPlayer?.SeekTo(this.current_time);
-                }
-            }
-            if (update_playhead) {
-                this._updatingPlayHead = true;
-                this.trackBarPlayHead.Value = (int)Math.Min(Math.Max((double)this.trackBarPlayHead.Minimum, pos), (double)this.trackBarPlayHead.Maximum);
-                this._updatingPlayHead = false;
-            }
-
-            Update_Value("current_pos");
-            Update_Value("current_time");
-        }
+        // ================================================================================================================== INIT
 
         private void Form1_Load(object sender, EventArgs e)
         {
@@ -657,6 +1212,9 @@ namespace Richard_VLC
 
             this.startWidth = this.pnlVideoFull.Width;
             this.startHeight = this.pnlVideoFull.Height;
+
+            this.topSpeedMarker = 200;
+            this.botSpeedMarker = this.trackBarSpeed.Height - 100;
 
             var aspect_ratio = string.Format("{0}:{1}", this.pnlVIDEO.Width, this.pnlVIDEO.Height);
 
@@ -672,6 +1230,7 @@ namespace Richard_VLC
 
             trackBarSpeed.Value = (int)(speed_ff * (double)trackBarSpeed.Maximum);  // set marker at 1 second per frame
             trackBarSpeed.Value = (int)(speed_1 * (double)trackBarSpeed.Maximum);   // set marker at 100% speed
+
             trackBarPlayHead.Maximum = (int)this.video_length_frames;
 
             trackBarJogShuttle.Minimum = -50;
@@ -688,7 +1247,8 @@ namespace Richard_VLC
 
             if (!this.always_display_controls) {
                 this.pnlVideoFull.Visible = false;
-                this.trackBarSpeed.Visible = false;
+            //  this.trackBarSpeed.Visible = false;
+                show_hide_speed(false);
                 this.trackBarJogShuttle.Visible = false;
                 this.dataGridView1.Visible = false;
             }
@@ -698,7 +1258,7 @@ namespace Richard_VLC
 
             this.mouseVideoLocation = new System.Drawing.Point(x0, y0);
 
-            this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
+            Set_Play_State(play_state.stopped);
 
             Update_Value("current_pos");
             Update_Value("current_time");
@@ -720,7 +1280,8 @@ namespace Richard_VLC
             Core.Initialize();
 
             this.KeyPreview = true;
-            //  this.KeyDown += new KeyEventHandler(ShortcutEvent);
+            this.KeyDown += new KeyEventHandler(ShortcutEvent);
+
             this.oldVideoSize = videoView1.Size;
             this.oldFormSize = this.Size;
             this.oldVideoLocation = this.videoView1.Location;
@@ -732,6 +1293,8 @@ namespace Richard_VLC
             this._mp.EnableMouseInput = false;
             this._mp.EnableKeyInput = false;
 
+            this._mp.EndReached += MediaPlayer_EndReached;
+
             // this._mp.EnableMouseInput = false;
 
             // this._mp.Hwnd = this.pnlVIDEO.Handle;
@@ -739,7 +1302,8 @@ namespace Richard_VLC
             this.videoView1.MediaPlayer = _mp;
 
             this.show_track_speed = true;
-            this.trackBarSpeed.Visible = this.show_track_speed;  // speed control on left
+
+            show_hide_speed(this.show_track_speed);  // speed control on left, no lock, so it should fade
             this.lastTrackSpeed = DateTime.MinValue;
 
             this.show_zoom_viewer = false;
@@ -1001,6 +1565,8 @@ namespace Richard_VLC
             }
         }
 
+        // ================================================================================================================== PAN / ZOOM
+
         private void pnlVIDEO_MouseWheel(object sender, MouseEventArgs e)
         {
             this.lastZoomPan = DateTime.Now;
@@ -1104,7 +1670,7 @@ namespace Richard_VLC
                 }
 
                 if (i == 1) {
-                    if (this.dragging_box) 
+                    if (this.dragging_box)
                         break;
                     int x0new = (int)(((double)this.mouseVideoLocation.X / (double)this.pnlVIDEO.Width) * (double)newwdt);
                     int y0new = (int)(((double)this.mouseVideoLocation.Y / (double)this.pnlVIDEO.Height) * (double)newhgt);
@@ -1114,8 +1680,8 @@ namespace Richard_VLC
                     y0new += y1;
                     int xdelta = x0 - x0new;
                     int ydelta = y0 - y0new;
-                    x1 += xdelta;  x2 += xdelta;
-                    y1 += ydelta;  y2 += ydelta;
+                    x1 += xdelta; x2 += xdelta;
+                    y1 += ydelta; y2 += ydelta;
                 }
             }
 
@@ -1139,7 +1705,7 @@ namespace Richard_VLC
             //    }
             //}
 
-            if (this._mp != null && this.video_dimensions.width > 0) {
+            if (this.video_loaded && this.video_dimensions.width > 0) {
                 //int x = (int)((double)x0 - 0.5 * (double)newwdt);
                 //int y = (int)((double)y0 - 0.5 * (double)newhgt);
                 int x = x1;
@@ -1256,9 +1822,10 @@ namespace Richard_VLC
         {
             if (!this.dragging_box) {
                 if ((e.X < (this.trackBarSpeed.Width + 10)) && (e.Y <= this.trackBarSpeed.Height)) {
-                    if ((e.Y > 200) && (e.Y < this.trackBarSpeed.Height - 100)) {
-                        if (!this.trackBarSpeed.Visible)
-                            this.trackBarSpeed.Visible = true;
+                    if ((e.Y > this.topSpeedMarker) && (e.Y < this.botSpeedMarker)) {
+                        if (!this.trackBarSpeed.Visible) {
+                            show_hide_speed(true);
+                        }
                         this.show_track_speed = true;
                     }
                     this.lastTrackSpeed = DateTime.Now;
@@ -1385,193 +1952,22 @@ namespace Richard_VLC
             this.dragging_box = false;
         }
 
-        private async void openToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            this.openFileDialog1.Title = "Select VIDEO to play";
-            this.openFileDialog1.InitialDirectory = "G:\\";
-
-            if (this.openFileDialog1.ShowDialog() == DialogResult.OK) {
-
-                this.video_file = this.openFileDialog1.FileName;
-
-                this.Text = "Richard's VLC Viewer - " + this.video_file;
-
-                if (this.playing && !this.paused) {
-                    this.videoView1?.MediaPlayer?.Stop();
-                }
-
-                this.butPlay.Image = this.imageList1.Images[(int)button_image.play];
-                this.toolTip1.SetToolTip(this.butPlay, "Click to PLAY");
-                this.playing = false;
-                this.paused = false;
-                this.single_framing_forward = false;
-                this.single_framing_backward = false;
-
-                Update_Value("mode");
-                Update_Value("reverse_motion");
-
-                this.butStop.Visible = false;
-
-                //    FileInfo fi = new FileInfo(this.video_file);
-                //    this.videoView1.SetMedia(fi);
-
-
-                using var media = new Media(this._libVLC, this.video_file);
-
-
-                this.start_run_state = run_state.paused;
-                this.CURRENT_RUN_STATE = run_state.paused;  // VLC owns playhead
-
-                // VIDEO properties are usually empty until video actually starts playing
-
-                this.good_aspect = false;
-                this.good_framerate = false;
-                this.good_length = false;
-
-                string AspectRatio = ""; // this._mp?.AspectRatio ?? "";
-                long length = 0; //         this._mp?.Length ?? 0;
-                float fps = 0; //           this._mp?.Fps ?? 0;
-
-                await media.Parse(MediaParseOptions.ParseLocal, -1, CancellationToken.None); // MediaPlayer usually doe not return any info.  fetch it by hand
-
-                if (string.IsNullOrWhiteSpace(AspectRatio)) {
-                    var tracks = media.Tracks;
-                    foreach (var track in tracks) {
-                        if (track.TrackType == TrackType.Video) {
-                            AspectRatio = string.Format("{0}:{1}", track.Data.Video.Width, track.Data.Video.Height);
-                            break;
-                        }
-                    }
-                }
-                if (length <= 0) {
-                    length = media.Duration;
-                }
-
-                fetch_video_properties(AspectRatio, fps, length);
-
-                if (!this.good_aspect) {
-                    // AspectRatio unknown -- assume 16:9
-
-                    var aspect_ratio = (9.0 / 16.0);
-
-                    // 16:9: 0,5625  The standard widescreen format for modern TVs, computer monitors, and YouTube videos.
-                    // 4:3:  0,75    The older "box-like" standard used for vintage televisions and early computer screens.
-                    // 1:1:  1,00    A completely square format often used for profile pictures and social media posts.
-                    // 9:16: 1,7777  A vertical format used for mobile stories and phone
-
-                    // less than 0,5 conserve width & adjust height
-                    // greater than 1.0 conserve height & adjust width
-
-                    if (aspect_ratio < 0.6) {
-                        this.pnlVideoFull.Width = this.startWidth;
-                        this.pnlVideoFull.Height = (int)(aspect_ratio * (double)this.startWidth);
-                    } else {
-                        this.pnlVideoFull.Height = this.startHeight;
-                        this.pnlVideoFull.Width = (int)((double)this.startHeight / aspect_ratio);
-                    }
-                }
-                this.pnlVideoZoom.Width = this.pnlVideoFull.Width;
-                this.pnlVideoZoom.Height = this.pnlVideoFull.Height;
-
-                this.videoZoomWidth = this.pnlVideoZoom.Width;
-                this.videoZoomAspect = (double)this.pnlVideoZoom.Width / (double)this.pnlVideoZoom.Height;
-
-                // -------------------------------------
-
-                if (!this.good_framerate) {
-                    // invent a frame-rate, but don't set good_framerate = true
-                    this.frame_rate = 30.0;  // hopefully this is correct !!
-                    Update_Value("frame_rate");
-                }
-
-                if (!this.good_length) {
-                    // invent a length, but don't set good_length = true
-                    this.video_length_frames = (int)(this.frame_rate * 60.0 * 5.0);   // assume 5.0 minute long video
-                    trackBarPlayHead.Maximum = (int)this.video_length_frames;
-                    Update_Value("length");
-                }
-
-                //this.current_pos = this.video_length * this._mp.Position;
-                //var pos_secs = this.current_pos / this.frame_rate;
-                //this.current_time = TimeSpan.FromSeconds((double)this._mp.Time / 1000.0);
-
-                double pos = 0;  // assume playhead is @ beginning
-
-                Set_Current_Pos(pos,new TimeSpan(0), update_playhead: true, seek_in_video: false);
-
-                //for (int i = 1; i <= 2; i++) {
-                //    bool vis = i == 1 ? false : true;
-                //    this.trackBarPlayHead.Visible = vis;
-                //    this.butBegin.Visible = vis;
-                //    this.butSingleBack.Visible = vis;
-                //    this.butPlay.Visible = vis;
-                //    this.butSingleFwd.Visible = vis;
-                //    this.butStop.Visible = vis;  // playing ***
-                //    this.trackBarJogShuttle.Visible = vis;
-                //    this.trackBarSpeed.Visible = vis;
-                //    this.dataGridView1.Visible = vis;
-                //}
-
-                Zoom_Full();
-
-                this.start_run_state = run_state.vlc;
-                this.CURRENT_RUN_STATE = run_state.vlc;  // VLC owns playhead (*** should wait until video starts playing)
-
-                this._mp?.Media = media;  // now assign Media object to Player
-
-                if (auto_play_on_load) {
-                    
-                    this.videoView1?.MediaPlayer?.Play();
-
-                    this.butPlay.Image = this.imageList1.Images[(int)button_image.pause];
-                    this.toolTip1.SetToolTip(this.butPlay, "Click to PAUSE");
-                    this.butStop.Visible = true;
-                    this.playing = true;
-                    this.paused = false;
-                    this.reverse_motion = false;
-                    Update_Value("mode");
-                    Update_Value("reverse_motion");
-                }
-            }
-        }
-
-
-        public cVideoDim GetHeightWidthRatio(string? AspectRatio)
-        {
-            cVideoDim video_dim = new cVideoDim();
-
-            if (string.IsNullOrWhiteSpace(AspectRatio)) {
-                return video_dim;
-            }
-            try {
-                Match match = Regex.Match(
-                    AspectRatio,
-                    @"^\s*(\d+)\s*:\s*(\d+)\s*$");
-
-                if (!match.Success)
-                    return video_dim;
-
-                double width = double.Parse(match.Groups[1].Value);
-                double height = double.Parse(match.Groups[2].Value);
-
-                if ((width <= 1.0) || (height <= 1.0))
-                    return video_dim;
-
-                video_dim.height = (int)height;
-                video_dim.width = (int)width;
-
-                video_dim.hgt_wdt = height / width;
-                video_dim.wdt_hgt = width / height;
-            } catch {
-                video_dim.height = video_dim.width = 0;
-                video_dim.hgt_wdt = video_dim.wdt_hgt = 0.0;
-
-                return video_dim;
-            }
-            return video_dim;
-        }
 
         // ============================================================================ MediaPlayer Events
+
+        private void MediaPlayer_EndReached(object? sender, EventArgs e)
+        {
+            if (this.playing || this.paused) {
+                if (InvokeRequired) {
+                    BeginInvoke(new Action(() =>
+                    {
+                        Set_Play_State(play_state.stopped);
+                    }));
+                } else {
+                    Set_Play_State(play_state.stopped);
+                }
+            }
+        }
 
         private void trackBarSpeed_Click(object sender, EventArgs e)
         {
@@ -1587,7 +1983,12 @@ namespace Richard_VLC
         }
         private void trackBarPlayHead_Click(object sender, EventArgs e)
         {
-            this.lock_play_head = !this.lock_play_head;
+            //  this.lock_play_head = !this.lock_play_head;
+        }
+
+        private void REH_VLC_Viewer_SizeChanged(object sender, EventArgs e)
+        {
+            drawSpeedMarkers();
         }
 
 
