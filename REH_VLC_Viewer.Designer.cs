@@ -37,6 +37,21 @@
             trackBarPlayHead = new TrackBar();
             trackBarSpeed = new TrackBar();
             pnlVIDEO = new Panel();
+            statusStrip1 = new StatusStrip();
+            toolStripTrackFPS = new ToolStripStatusLabel();
+            toolStripStatusDiv1 = new ToolStripStatusLabel();
+            toolStripSpeed = new ToolStripStatusLabel();
+            toolStripSpring1 = new ToolStripStatusLabel();
+            toolStripMode = new ToolStripStatusLabel();
+            toolStripZoom = new ToolStripStatusLabel();
+            toolStripSpring2 = new ToolStripStatusLabel();
+            toolStripTimeOffset = new ToolStripStatusLabel();
+            toolStripStatusDiv2 = new ToolStripStatusLabel();
+            toolStripFrameNumber = new ToolStripStatusLabel();
+            pnlOverlay = new SemiTransparentPanel();
+            labSpeedIndicator = new TransparentLabel();
+            labFPS = new Label();
+            labMarker = new Label();
             labSpeed = new Label();
             pnlVideoFull = new Panel();
             pnlVideoZoom = new Panel();
@@ -66,10 +81,10 @@
             toolStripSeparator4 = new ToolStripSeparator();
             selectAllToolStripMenuItem = new ToolStripMenuItem();
             openFileDialog1 = new OpenFileDialog();
-            labMarker = new Label();
             ((System.ComponentModel.ISupportInitialize)trackBarPlayHead).BeginInit();
             ((System.ComponentModel.ISupportInitialize)trackBarSpeed).BeginInit();
             pnlVIDEO.SuspendLayout();
+            statusStrip1.SuspendLayout();
             pnlVideoFull.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dataGridView1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)trackBarJogShuttle).BeginInit();
@@ -81,7 +96,7 @@
             // 
             butBegin.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             butBegin.BackColor = Color.Transparent;
-            butBegin.Location = new Point(3, 566);
+            butBegin.Location = new Point(3, 564);
             butBegin.Name = "butBegin";
             butBegin.Size = new Size(34, 34);
             butBegin.TabIndex = 0;
@@ -93,7 +108,7 @@
             // 
             butSingleBack.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             butSingleBack.BackColor = Color.Transparent;
-            butSingleBack.Location = new Point(39, 566);
+            butSingleBack.Location = new Point(39, 564);
             butSingleBack.Name = "butSingleBack";
             butSingleBack.Size = new Size(34, 34);
             butSingleBack.TabIndex = 0;
@@ -107,7 +122,7 @@
             // 
             butPlay.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             butPlay.BackColor = Color.Transparent;
-            butPlay.Location = new Point(75, 566);
+            butPlay.Location = new Point(75, 564);
             butPlay.Name = "butPlay";
             butPlay.Size = new Size(34, 34);
             butPlay.TabIndex = 0;
@@ -119,7 +134,7 @@
             // 
             butSingleFwd.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             butSingleFwd.BackColor = Color.Transparent;
-            butSingleFwd.Location = new Point(111, 566);
+            butSingleFwd.Location = new Point(111, 564);
             butSingleFwd.Name = "butSingleFwd";
             butSingleFwd.Size = new Size(34, 34);
             butSingleFwd.TabIndex = 0;
@@ -133,7 +148,7 @@
             // 
             butStop.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             butStop.BackColor = Color.Transparent;
-            butStop.Location = new Point(147, 566);
+            butStop.Location = new Point(147, 564);
             butStop.Name = "butStop";
             butStop.Size = new Size(34, 34);
             butStop.TabIndex = 0;
@@ -144,7 +159,7 @@
             // trackBarPlayHead
             // 
             trackBarPlayHead.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            trackBarPlayHead.Location = new Point(186, 566);
+            trackBarPlayHead.Location = new Point(186, 561);
             trackBarPlayHead.Name = "trackBarPlayHead";
             trackBarPlayHead.Size = new Size(956, 45);
             trackBarPlayHead.TabIndex = 1;
@@ -160,7 +175,7 @@
             trackBarSpeed.Maximum = 100;
             trackBarSpeed.Name = "trackBarSpeed";
             trackBarSpeed.Orientation = Orientation.Vertical;
-            trackBarSpeed.Size = new Size(45, 560);
+            trackBarSpeed.Size = new Size(45, 555);
             trackBarSpeed.TabIndex = 1;
             trackBarSpeed.Click += trackBarSpeed_Click;
             trackBarSpeed.Scroll += trackBarSpeed_Scroll;
@@ -168,6 +183,10 @@
             // 
             // pnlVIDEO
             // 
+            pnlVIDEO.Controls.Add(statusStrip1);
+            pnlVIDEO.Controls.Add(pnlOverlay);
+            pnlVIDEO.Controls.Add(labSpeedIndicator);
+            pnlVIDEO.Controls.Add(labFPS);
             pnlVIDEO.Controls.Add(labMarker);
             pnlVIDEO.Controls.Add(labSpeed);
             pnlVIDEO.Controls.Add(pnlVideoFull);
@@ -184,13 +203,119 @@
             pnlVIDEO.Dock = DockStyle.Fill;
             pnlVIDEO.Location = new Point(0, 24);
             pnlVIDEO.Name = "pnlVIDEO";
-            pnlVIDEO.Size = new Size(1146, 603);
+            pnlVIDEO.Size = new Size(1146, 627);
             pnlVIDEO.TabIndex = 3;
             pnlVIDEO.DoubleClick += pnlVIDEO_DoubleClick;
             pnlVIDEO.MouseDown += pnlVIDEO_MouseDown;
             pnlVIDEO.MouseMove += pnlVIDEO_MouseMove;
             pnlVIDEO.MouseUp += pnlVIDEO_MouseUp;
             pnlVIDEO.MouseWheel += pnlVIDEO_MouseWheel;
+            // 
+            // statusStrip1
+            // 
+            statusStrip1.Items.AddRange(new ToolStripItem[] { toolStripTrackFPS, toolStripStatusDiv1, toolStripSpeed, toolStripSpring1, toolStripMode, toolStripZoom, toolStripSpring2, toolStripTimeOffset, toolStripStatusDiv2, toolStripFrameNumber });
+            statusStrip1.Location = new Point(0, 605);
+            statusStrip1.Name = "statusStrip1";
+            statusStrip1.Size = new Size(1146, 22);
+            statusStrip1.TabIndex = 11;
+            statusStrip1.Text = "statusStrip1";
+            // 
+            // toolStripTrackFPS
+            // 
+            toolStripTrackFPS.Name = "toolStripTrackFPS";
+            toolStripTrackFPS.Size = new Size(0, 17);
+            // 
+            // toolStripStatusDiv1
+            // 
+            toolStripStatusDiv1.Name = "toolStripStatusDiv1";
+            toolStripStatusDiv1.Size = new Size(24, 17);
+            toolStripStatusDiv1.Text = "  -  ";
+            // 
+            // toolStripSpeed
+            // 
+            toolStripSpeed.Name = "toolStripSpeed";
+            toolStripSpeed.Size = new Size(0, 17);
+            // 
+            // toolStripSpring1
+            // 
+            toolStripSpring1.Name = "toolStripSpring1";
+            toolStripSpring1.Size = new Size(526, 17);
+            toolStripSpring1.Spring = true;
+            // 
+            // toolStripMode
+            // 
+            toolStripMode.Name = "toolStripMode";
+            toolStripMode.Size = new Size(0, 17);
+            // 
+            // toolStripZoom
+            // 
+            toolStripZoom.Name = "toolStripZoom";
+            toolStripZoom.Size = new Size(0, 17);
+            // 
+            // toolStripSpring2
+            // 
+            toolStripSpring2.Name = "toolStripSpring2";
+            toolStripSpring2.Size = new Size(526, 17);
+            toolStripSpring2.Spring = true;
+            // 
+            // toolStripTimeOffset
+            // 
+            toolStripTimeOffset.Name = "toolStripTimeOffset";
+            toolStripTimeOffset.Size = new Size(0, 17);
+            // 
+            // toolStripStatusDiv2
+            // 
+            toolStripStatusDiv2.Name = "toolStripStatusDiv2";
+            toolStripStatusDiv2.Size = new Size(24, 17);
+            toolStripStatusDiv2.Text = "  -  ";
+            // 
+            // toolStripFrameNumber
+            // 
+            toolStripFrameNumber.Name = "toolStripFrameNumber";
+            toolStripFrameNumber.Size = new Size(0, 17);
+            // 
+            // pnlOverlay
+            // 
+            pnlOverlay.BackColor = Color.Red;
+            pnlOverlay.Location = new Point(384, 57);
+            pnlOverlay.Name = "pnlOverlay";
+            pnlOverlay.Size = new Size(200, 100);
+            pnlOverlay.TabIndex = 10;
+            // 
+            // labSpeedIndicator
+            // 
+            labSpeedIndicator.AutoSize = true;
+            labSpeedIndicator.BackColor = Color.Transparent;
+            labSpeedIndicator.Font = new Font("Consolas", 14.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            labSpeedIndicator.Location = new Point(361, 295);
+            labSpeedIndicator.Name = "labSpeedIndicator";
+            labSpeedIndicator.Size = new Size(180, 22);
+            labSpeedIndicator.TabIndex = 9;
+            labSpeedIndicator.Text = "transparentLabel1";
+            // 
+            // labFPS
+            // 
+            labFPS.AutoSize = true;
+            labFPS.Font = new Font("Consolas", 14.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            labFPS.Location = new Point(471, 225);
+            labFPS.Name = "labFPS";
+            labFPS.Size = new Size(70, 22);
+            labFPS.TabIndex = 8;
+            labFPS.Text = "15 f/s";
+            // 
+            // labMarker
+            // 
+            labMarker.AutoSize = true;
+            labMarker.BackColor = SystemColors.Control;
+            labMarker.FlatStyle = FlatStyle.Flat;
+            labMarker.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            labMarker.ForeColor = Color.Red;
+            labMarker.Location = new Point(235, 592);
+            labMarker.Name = "labMarker";
+            labMarker.Size = new Size(15, 15);
+            labMarker.TabIndex = 7;
+            labMarker.Text = "^";
+            labMarker.Visible = false;
             // 
             // labSpeed
             // 
@@ -242,7 +367,7 @@
             // 
             trackBarJogShuttle.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             trackBarJogShuttle.BackColor = Color.DimGray;
-            trackBarJogShuttle.Location = new Point(465, 534);
+            trackBarJogShuttle.Location = new Point(470, 532);
             trackBarJogShuttle.Name = "trackBarJogShuttle";
             trackBarJogShuttle.Size = new Size(335, 45);
             trackBarJogShuttle.TabIndex = 1;
@@ -258,9 +383,10 @@
             videoView1.Location = new Point(3, 0);
             videoView1.MediaPlayer = null;
             videoView1.Name = "videoView1";
-            videoView1.Size = new Size(1143, 560);
+            videoView1.Size = new Size(1143, 555);
             videoView1.TabIndex = 5;
             videoView1.Text = "videoView1";
+            videoView1.Click += videoView1_Click;
             videoView1.DoubleClick += pnlVIDEO_DoubleClick;
             videoView1.MouseDown += pnlVIDEO_MouseDown;
             videoView1.MouseMove += pnlVIDEO_MouseMove;
@@ -389,25 +515,11 @@
             // 
             openFileDialog1.FileName = "openFileDialog1";
             // 
-            // labMarker
-            // 
-            labMarker.AutoSize = true;
-            labMarker.BackColor = SystemColors.Control;
-            labMarker.FlatStyle = FlatStyle.Flat;
-            labMarker.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            labMarker.ForeColor = Color.Red;
-            labMarker.Location = new Point(235, 592);
-            labMarker.Name = "labMarker";
-            labMarker.Size = new Size(15, 15);
-            labMarker.TabIndex = 7;
-            labMarker.Text = "^";
-            labMarker.Visible = false;
-            // 
             // REH_VLC_Viewer
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1146, 627);
+            ClientSize = new Size(1146, 651);
             Controls.Add(pnlVIDEO);
             Controls.Add(menuStrip1);
             Name = "REH_VLC_Viewer";
@@ -419,6 +531,8 @@
             ((System.ComponentModel.ISupportInitialize)trackBarSpeed).EndInit();
             pnlVIDEO.ResumeLayout(false);
             pnlVIDEO.PerformLayout();
+            statusStrip1.ResumeLayout(false);
+            statusStrip1.PerformLayout();
             pnlVideoFull.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)dataGridView1).EndInit();
             ((System.ComponentModel.ISupportInitialize)trackBarJogShuttle).EndInit();
@@ -470,5 +584,19 @@
         private OpenFileDialog openFileDialog1;
         private Label labSpeed;
         private Label labMarker;
+        private Label labFPS;
+        private TransparentLabel labSpeedIndicator;
+        private SemiTransparentPanel pnlOverlay;
+        private StatusStrip statusStrip1;
+        private ToolStripStatusLabel toolStripTrackFPS;
+        private ToolStripStatusLabel toolStripTimeOffset;
+        private ToolStripStatusLabel toolStripFrameNumber;
+        private ToolStripStatusLabel toolStripSpeed;
+        private ToolStripStatusLabel toolStripMode;
+        private ToolStripStatusLabel toolStripStatusDiv1;
+        private ToolStripStatusLabel toolStripStatusDiv2;
+        private ToolStripStatusLabel toolStripSpring1;
+        private ToolStripStatusLabel toolStripZoom;
+        private ToolStripStatusLabel toolStripSpring2;
     }
 }

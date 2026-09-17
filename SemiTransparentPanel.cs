@@ -10,6 +10,7 @@ namespace Richard_VLC
 {
     public partial class SemiTransparentPanel : Panel
     {
+        private const int WS_EX_TRANSPARENT = 0x20;
         private int _alpha = 125; // 0 (fully transparent) to 255 (fully opaque)
 
         [DefaultValue(125)]
@@ -24,7 +25,7 @@ namespace Richard_VLC
             get
             {
                 CreateParams cp = base.CreateParams;
-                cp.ExStyle |= 0x00000020; // WS_EX_TRANSPARENT (tells Windows to paint underneath first)
+                cp.ExStyle |= WS_EX_TRANSPARENT; // (tells Windows to paint underneath first)
                 return cp;
             }
         }
@@ -33,7 +34,7 @@ namespace Richard_VLC
         {
             // Draw the semi-transparent background color
             using (var brush = new SolidBrush(Color.FromArgb(_alpha, BackColor))) {
-                e.Graphics.FillRectangle(brush, ClientRectangle);
+                e.Graphics.FillRectangle(brush, this.ClientRectangle);
             }
             base.OnPaint(e);
         }
