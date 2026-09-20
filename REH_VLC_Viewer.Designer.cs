@@ -65,6 +65,8 @@
             openToolStripMenuItem = new ToolStripMenuItem();
             toolStripSeparator = new ToolStripSeparator();
             exitToolStripMenuItem = new ToolStripMenuItem();
+            settingsToolStripMenuItem = new ToolStripMenuItem();
+            darkModeToolStripMenuItem = new ToolStripMenuItem();
             contentsToolStripMenuItem = new ToolStripMenuItem();
             indexToolStripMenuItem = new ToolStripMenuItem();
             searchToolStripMenuItem = new ToolStripMenuItem();
@@ -159,6 +161,7 @@
             // trackBarPlayHead
             // 
             trackBarPlayHead.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            trackBarPlayHead.BackColor = SystemColors.Control;
             trackBarPlayHead.Location = new Point(186, 561);
             trackBarPlayHead.Name = "trackBarPlayHead";
             trackBarPlayHead.Size = new Size(956, 45);
@@ -183,6 +186,7 @@
             // 
             // pnlVIDEO
             // 
+            pnlVIDEO.BackColor = SystemColors.Control;
             pnlVIDEO.Controls.Add(statusStrip1);
             pnlVIDEO.Controls.Add(pnlOverlay);
             pnlVIDEO.Controls.Add(labSpeedIndicator);
@@ -239,7 +243,7 @@
             // toolStripSpring1
             // 
             toolStripSpring1.Name = "toolStripSpring1";
-            toolStripSpring1.Size = new Size(526, 17);
+            toolStripSpring1.Size = new Size(541, 17);
             toolStripSpring1.Spring = true;
             // 
             // toolStripMode
@@ -255,7 +259,7 @@
             // toolStripSpring2
             // 
             toolStripSpring2.Name = "toolStripSpring2";
-            toolStripSpring2.Size = new Size(526, 17);
+            toolStripSpring2.Size = new Size(541, 17);
             toolStripSpring2.Spring = true;
             // 
             // toolStripTimeOffset
@@ -305,6 +309,7 @@
             // 
             // labMarker
             // 
+            labMarker.Anchor = AnchorStyles.Bottom;
             labMarker.AutoSize = true;
             labMarker.BackColor = SystemColors.Control;
             labMarker.FlatStyle = FlatStyle.Flat;
@@ -401,7 +406,7 @@
             // 
             // menuStrip1
             // 
-            menuStrip1.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem });
+            menuStrip1.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem, settingsToolStripMenuItem });
             menuStrip1.Location = new Point(0, 0);
             menuStrip1.Name = "menuStrip1";
             menuStrip1.Size = new Size(1146, 24);
@@ -418,7 +423,6 @@
             // openToolStripMenuItem
             // 
             openToolStripMenuItem.Image = (Image)resources.GetObject("openToolStripMenuItem.Image");
-            openToolStripMenuItem.ImageTransparentColor = Color.Magenta;
             openToolStripMenuItem.Name = "openToolStripMenuItem";
             openToolStripMenuItem.ShortcutKeys = Keys.Control | Keys.O;
             openToolStripMenuItem.Size = new Size(146, 22);
@@ -435,6 +439,21 @@
             exitToolStripMenuItem.Name = "exitToolStripMenuItem";
             exitToolStripMenuItem.Size = new Size(146, 22);
             exitToolStripMenuItem.Text = "E&xit";
+            // 
+            // settingsToolStripMenuItem
+            // 
+            settingsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { darkModeToolStripMenuItem });
+            settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
+            settingsToolStripMenuItem.Size = new Size(61, 20);
+            settingsToolStripMenuItem.Text = "&Settings";
+            // 
+            // darkModeToolStripMenuItem
+            // 
+            darkModeToolStripMenuItem.CheckOnClick = true;
+            darkModeToolStripMenuItem.Name = "darkModeToolStripMenuItem";
+            darkModeToolStripMenuItem.Size = new Size(132, 22);
+            darkModeToolStripMenuItem.Text = "Dark Mode";
+            darkModeToolStripMenuItem.CheckedChanged += darkModeToolStripMenuItem_CheckedChanged;
             // 
             // contentsToolStripMenuItem
             // 
@@ -598,5 +617,7 @@
         private ToolStripStatusLabel toolStripSpring1;
         private ToolStripStatusLabel toolStripZoom;
         private ToolStripStatusLabel toolStripSpring2;
+        private ToolStripMenuItem settingsToolStripMenuItem;
+        private ToolStripMenuItem darkModeToolStripMenuItem;
     }
 }

@@ -1,9 +1,12 @@
 using System.Data;
 using System.Diagnostics;
 using System.DirectoryServices.ActiveDirectory;
+using System.Drawing.Drawing2D;
+using System.Drawing.Printing;
 using System.Text.RegularExpressions;
 using LibVLCSharp.Shared;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.ToolBar;
 
 namespace Richard_VLC
 {
@@ -39,6 +42,47 @@ namespace Richard_VLC
             public string file_name { get; set; } = "";
             public string title { get; set; } = "";
         }
+
+        public class DarkColorTable : ProfessionalColorTable
+        {
+            private static readonly Color Dark = Color.FromArgb(45, 45, 48);
+            private static readonly Color Darker = Color.FromArgb(30, 30, 30);
+            private static readonly Color Selected = Color.FromArgb(70, 70, 75);
+
+            // MenuStrip
+            public override Color MenuStripGradientBegin => Dark;
+            public override Color MenuStripGradientEnd => Dark;
+
+            // Dropdown itself
+            public override Color ToolStripDropDownBackground => Dark;
+
+            // Dropdown/image margin
+            public override Color ImageMarginGradientBegin => Dark;
+            public override Color ImageMarginGradientMiddle => Dark;
+            public override Color ImageMarginGradientEnd => Dark;
+
+            // Selected menu item
+            public override Color MenuItemSelected => Selected;
+            public override Color MenuItemSelectedGradientBegin => Selected;
+            public override Color MenuItemSelectedGradientEnd => Selected;
+
+            // Top-level menu item when pressed
+            public override Color MenuItemPressedGradientBegin => Selected;
+            public override Color MenuItemPressedGradientMiddle => Selected;
+            public override Color MenuItemPressedGradientEnd => Selected;
+
+            // Borders
+            public override Color MenuBorder => Darker;
+            public override Color MenuItemBorder => Darker;
+        }
+        public class DarkMenuRenderer : ToolStripProfessionalRenderer
+        {
+            public DarkMenuRenderer()
+                : base(new DarkColorTable())
+            {
+            }
+        }
+
         public cVideo current_video = new cVideo();
         public cVideoDim video_dimensions = new cVideoDim();
 
@@ -365,7 +409,7 @@ namespace Richard_VLC
                 this.current_time = TimeSpan.FromSeconds(Math.Max(0.0, pos) / this.frame_rate);
             }
             this.current_pos = Math.Min(Math.Max(0.0, pos), (double)this.video_length_frames);
-        //  Debug.WriteLine($"Set_Current_Pos: curr_pos = {this.current_pos}");  <<<< *** until we find a way to print .... instead of spamming Output window
+            //  Debug.WriteLine($"Set_Current_Pos: curr_pos = {this.current_pos}");  <<<< *** until we find a way to print .... instead of spamming Output window
 
             if (seek_in_video) {
                 if (this.video_loaded) {
@@ -394,7 +438,7 @@ namespace Richard_VLC
             Update_Value("current_time");
         }
 
-        private void Start_Action (string routine, string action)
+        private void Start_Action(string routine, string action)
         {
             Debug.WriteLine($"{routine}: MediaPlayer {action}");
             this.lastAction = DateTime.Now;
@@ -735,7 +779,7 @@ namespace Richard_VLC
             Debug.WriteLine($"| butBegin_Click");
 
             if (this.video_loaded) {
-                Start_Action("butBegin_Click","SEEK TO 0");
+                Start_Action("butBegin_Click", "SEEK TO 0");
                 this._mp?.SeekTo(new TimeSpan(0));
             }
             Set_Current_Pos(0.0, new TimeSpan(0), update_playhead: true, seek_in_video: true);
@@ -755,7 +799,7 @@ namespace Richard_VLC
             if (this.playing && !this.paused) {
                 // playing   Play => PAUSE
                 if (this.video_loaded) {
-                    Start_Action("butPlay_Click","PAUSE");
+                    Start_Action("butPlay_Click", "PAUSE");
                     this._mp?.Pause();
                     // Application.DoEvents();
                 }
@@ -763,7 +807,7 @@ namespace Richard_VLC
             } else {
                 // not playing   Play => PLAY
                 if (this.video_loaded) {
-                    Start_Action("butPlay_Click","PLAY");
+                    Start_Action("butPlay_Click", "PLAY");
                     this._mp?.Play();
                     // Application.DoEvents();
                 }
@@ -781,7 +825,7 @@ namespace Richard_VLC
             Debug.WriteLine($"| butStop_Click");
 
             if (this.video_loaded) {
-                Start_Action("butStop_Click","STOP");
+                Start_Action("butStop_Click", "STOP");
                 this._mp?.Stop();
                 // Application.DoEvents();
             }
@@ -866,7 +910,7 @@ namespace Richard_VLC
                 Set_Play_State(play_state.paused);
 
                 if (this.video_loaded) {
-                    Start_Action("butSingleBack_MouseDown","PAUSE");
+                    Start_Action("butSingleBack_MouseDown", "PAUSE");
                     this._mp?.Pause();
                     // Application.DoEvents();
                 }
@@ -1007,7 +1051,7 @@ namespace Richard_VLC
                 Set_Play_State(play_state.paused);
 
                 if (this.video_loaded) {
-                    Start_Action("butSingleFwd_MouseDown","PAUSE");
+                    Start_Action("butSingleFwd_MouseDown", "PAUSE");
                     this._mp?.Pause();
                     // Application.DoEvents();
                 }
@@ -1027,7 +1071,7 @@ namespace Richard_VLC
                 Set_Current_Pos(pos, tpos, update_playhead: true, seek_in_video: true);
                 // now let timer take over, until we release mouse button
             } else {
-                Start_Action("butSingleFwd_MouseDown","NEXT FRAME");
+                Start_Action("butSingleFwd_MouseDown", "NEXT FRAME");
                 this._mp?.NextFrame();
                 double pos = this.current_pos + 1.0;
                 TimeSpan tpos = new TimeSpan(0);
@@ -1173,7 +1217,7 @@ namespace Richard_VLC
                 Set_Play_State(play_state.playing);
 
                 if (this.video_loaded) {
-                    Start_Action("trackBarPlayHead_MouseUp","PLAY");
+                    Start_Action("trackBarPlayHead_MouseUp", "PLAY");
                     this._mp?.Play();  // resume play
                     // Application.DoEvents();
                 }
@@ -1333,7 +1377,7 @@ namespace Richard_VLC
 
             double fr_rate = this.frame_rate * this.current_speed;
             if (fr_rate >= 1.0) {
-                Start_Action("trackBarJogShuttle_MouseUp",$"SETRATE({this.current_speed})");
+                Start_Action("trackBarJogShuttle_MouseUp", $"SETRATE({this.current_speed})");
                 this._mp?.SetRate((float)this.current_speed);
                 // Application.DoEvents();
                 this.super_slow = false;
@@ -1347,7 +1391,7 @@ namespace Richard_VLC
                 Set_Play_State(play_state.playing);
 
                 if (this.video_loaded) {
-                    Start_Action("trackBarJogShuttle_MouseUp","PLAY");
+                    Start_Action("trackBarJogShuttle_MouseUp", "PLAY");
                     this._mp?.Play();  // resume play
                     // Application.DoEvents();
                 }
@@ -1446,6 +1490,22 @@ namespace Richard_VLC
             return lab;
         }
 
+        private void drawTrackMarkers()
+        {
+            double margin = 12.0;
+
+            foreach (KeyValuePair<double, Label> kv in this.trackMarkers) {
+                double pos = kv.Key;
+                Label lab = kv.Value;
+
+                int x0 = (int)((double)(this.trackBarPlayHead.Width - 2.0 * margin) * (pos / (double)this.trackBarPlayHead.Maximum));
+                x0 += (this.trackBarPlayHead.Left + (int)margin);
+                x0 -= (int)((double)this.labMarker.Width * 0.5);
+
+                lab.Location = new System.Drawing.Point(x0, this.labMarker.Location.Y);
+            }
+        }
+
         private Label drawTrackMarker(double pos, Color clr)
         {
             Label lab = new();
@@ -1474,6 +1534,7 @@ namespace Richard_VLC
                 lab.Location = new System.Drawing.Point(x0, this.labMarker.Location.Y);
                 lab.Name = String.Format("labMarker{0}", x0);
                 lab.Size = labMarker.Size;
+                lab.Anchor = labMarker.Anchor;
                 lab.Text = labMarker.Text;
                 lab.Tag = pos;
                 lab.Visible = true;
@@ -1493,6 +1554,138 @@ namespace Richard_VLC
             //this.pnlVIDEO.PerformLayout();
             return lab;
         }
+
+        private void Toggle_Theme(bool darkMode)
+        {
+            ApplyTheme(darkMode, this);
+        }
+        private void ApplyTheme(bool darkMode, Control parent)
+        {
+            Color bkgnd = darkMode ? Color.FromArgb(45, 45, 48) : SystemColors.Control;
+            Color foregnd = darkMode ? Color.White : SystemColors.ControlText;
+
+            Debug.WriteLine($"ApplyTheme( {parent.Name}");
+
+            if (parent.Name == "pnlVIDEO") {
+                parent.ForeColor = foregnd; parent.BackColor = bkgnd;
+            } else if (parent.Name == "trackBarSpeed" || parent.Name == "trackBarJogShuttle" ||
+                       parent.Name.Contains("labSpeed")) {
+                parent.BackColor = darkMode ? Color.FromArgb(94, 94, 100) : Color.DimGray;
+            } else if (parent.Name == "trackBarPlayHead" ||
+                       parent.Name.Contains("labMarker")) {
+                parent.BackColor = bkgnd;
+            } else if (parent.Name.Contains("ToolStripMenuItem")) {
+                parent.ForeColor = foregnd; parent.BackColor = bkgnd;
+            } else if (parent.Name.StartsWith("but")) {
+                bool useStyle = darkMode ? true : false;
+                Color butColor = darkMode ? bkgnd : Color.Transparent;
+                Color butHoverColor = darkMode ? Color.FromArgb(70, 70, 75) : Color.AntiqueWhite;
+                if (parent is System.Windows.Forms.Button but) {
+                //  parent.UseVisualStyleBackColor = useStyle;
+                //  parent.BackColor = butColor;
+                    but.FlatAppearance.MouseOverBackColor = butHoverColor;
+                }
+            }
+
+            foreach (Control control in parent.Controls) {
+                ApplyTheme(darkMode, control);
+            }
+
+            // Handle ToolStrip / MenuStrip items
+            if (parent is MenuStrip menuStrip) {  // returns true if parent can be typecast to a MenuStrip
+
+                Debug.WriteLine($"theming {menuStrip.Name}  (MenuStrip)");
+
+                menuStrip.BackColor = bkgnd;
+                menuStrip.ForeColor = foregnd;
+
+                ApplyMenuTheme(darkMode, menuStrip);
+
+                ApplyToolStripItems(darkMode, menuStrip.Items);
+
+            } else if (parent is ToolStrip toolStrip) {  // returns true if parent can be typecast to a ToolStrip
+
+                Debug.WriteLine($"theming {toolStrip.Name}  (ToolStrip)");
+
+                toolStrip.BackColor = bkgnd;
+                toolStrip.ForeColor = foregnd;
+
+                ApplyToolstripTheme(darkMode, toolStrip);
+
+                ApplyToolStripItems(darkMode, toolStrip.Items);
+            }
+        }
+
+        private void ApplyToolStripItems(bool darkMode, ToolStripItemCollection items)
+        {
+            Color bkgnd = darkMode ? Color.FromArgb(45, 45, 48) : SystemColors.Control;
+            Color foregnd = darkMode ? Color.White : SystemColors.ControlText;
+
+            foreach (ToolStripItem item in items) {
+
+                if (item is ToolStripMenuItem menuItem) {
+                    Debug.WriteLine($"theming {item.Name}  (ToolStripMenuItem)");
+                    item.BackColor = bkgnd;
+                    item.ForeColor = foregnd;
+                } else {
+                    Debug.WriteLine($"theming {item.Name}  (ToolStripItem)");
+                    item.BackColor = bkgnd;
+                    item.ForeColor = foregnd;
+                }
+
+                if (item is ToolStripDropDownItem dropDownItem) {
+
+                    Debug.WriteLine($"theming {dropDownItem.Name}  (ToolStripDropDownItem)");
+
+                    dropDownItem.DropDown.BackColor = bkgnd;
+                    dropDownItem.DropDown.ForeColor = foregnd;
+
+                    ApplyToolStripItems(darkMode, dropDownItem.DropDownItems);
+                }
+            }
+        }
+
+        private void ApplyMenuTheme(bool darkMode, MenuStrip menuStrip)
+        {
+            Debug.WriteLine($"ApplyMenuTheme {menuStrip.Name}  (MenuStrip)");
+
+            if (darkMode) {
+                menuStrip.RenderMode = ToolStripRenderMode.Professional;
+                menuStrip.Renderer =
+                    new DarkMenuRenderer();
+                //  new ToolStripProfessionalRenderer(new DarkColorTable());
+
+            //  menuStrip.ForeColor = Color.White;
+
+            } else {
+                menuStrip.RenderMode = ToolStripRenderMode.ManagerRenderMode;
+                menuStrip.Renderer =
+                    new ToolStripProfessionalRenderer(new ProfessionalColorTable());
+
+            //  menuStrip.ForeColor = SystemColors.ControlText;
+            }
+        }
+        private void ApplyToolstripTheme(bool darkMode, ToolStrip toolStrip)
+        {
+            Debug.WriteLine($"ApplyToolstripTheme {toolStrip.Name}  (ToolStrip)");
+
+            if (darkMode) {
+                toolStrip.RenderMode = ToolStripRenderMode.Professional;
+                toolStrip.Renderer =
+                    new DarkMenuRenderer();
+                //  new ToolStripProfessionalRenderer(new DarkColorTable());
+
+                //  menuStrip.ForeColor = Color.White;
+
+            } else {
+                toolStrip.RenderMode = ToolStripRenderMode.ManagerRenderMode;
+                toolStrip.Renderer =
+                    new ToolStripProfessionalRenderer(new ProfessionalColorTable());
+
+                //  menuStrip.ForeColor = SystemColors.ControlText;
+            }
+        }
+
 
         private void Label_Click(object? sender, EventArgs e)
         {
@@ -1538,7 +1731,7 @@ namespace Richard_VLC
                 this.reverse_motion = false; // go back to forward motion
                 this.super_slow = false;
 
-                Start_Action("trackBarSpeed_MouseDown",$"SETRATE({this.current_speed})");
+                Start_Action("trackBarSpeed_MouseDown", $"SETRATE({this.current_speed})");
                 this._mp?.SetRate((float)this.current_speed);
                 // Application.DoEvents();
 
@@ -1566,16 +1759,16 @@ namespace Richard_VLC
 
             if (this.video_loaded) {
                 // Play + PAUSE
-                Start_Action("trackBarSpeed_MouseDown","PLAY");
+                Start_Action("trackBarSpeed_MouseDown", "PLAY");
                 this._mp?.Play();  // play to force video to (re)load
                 // Application.DoEvents();
 
                 if (this.hold_playing && !this.hold_paused) {
-                //  Start_Action("trackBarSpeed_MouseDown","PAUSE");
-                //  this._mp?.Pause();  // <<< video was playing, leave it playing
+                    //  Start_Action("trackBarSpeed_MouseDown","PAUSE");
+                    //  this._mp?.Pause();  // <<< video was playing, leave it playing
                 } else {
-                //  Start_Action("trackBarSpeed_MouseDown","PAUSE");
-                //  this._mp?.Pause();  // <<< video was paused, pause it
+                    //  Start_Action("trackBarSpeed_MouseDown","PAUSE");
+                    //  this._mp?.Pause();  // <<< video was paused, pause it
                 }
                 // Application.DoEvents();
             }
@@ -1623,7 +1816,7 @@ namespace Richard_VLC
 
             if (this.video_loaded) {
                 if (fr_rate >= 1.0) {
-                    Start_Action("trackBarSpeed_Scroll",$"SETRATE({this.current_speed})");
+                    Start_Action("trackBarSpeed_Scroll", $"SETRATE({this.current_speed})");
                     this._mp?.SetRate((float)this.current_speed);
                     // Application.DoEvents();
                     this.super_slow = false;
@@ -1648,7 +1841,7 @@ namespace Richard_VLC
             // if video was paused before speed change, it is left paused now
 
             this.CURRENT_RUN_STATE = this.start_run_state;
-         // this.super_slow = false;  << determined by playrate
+            // this.super_slow = false;  << determined by playrate
             this.reverse_motion = this.hold_reverse;
 
             Update_Value("reverse_motion");
@@ -1659,6 +1852,7 @@ namespace Richard_VLC
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)  // override the OOTB handler
         {
             if (keyData == Keys.Left || keyData == Keys.Right || keyData == Keys.J || keyData == Keys.K) {
+
                 Control focused = GetFocusedControl(this);
 
                 if ((focused?.Name == this.trackBarPlayHead.Name) && this.show_play_head) {  // if the trackbar has the focus AND mouse is still in trackbar
@@ -1677,8 +1871,9 @@ namespace Richard_VLC
                 return true;
             }
 
-            if (keyData == Keys.Space) {
-                ShortcutEvent(this, new KeyEventArgs(keyData));
+            bool handled = ShortcutEvent(this, new KeyEventArgs(keyData));
+
+            if (handled) { 
                 return true;
             }
 
@@ -1695,8 +1890,10 @@ namespace Richard_VLC
             return parent;
         }
 
-        public void ShortcutEvent(object? sender, KeyEventArgs e)
+        public bool ShortcutEvent(object? sender, KeyEventArgs e)
         {
+            bool handled = true;
+
             switch (e.KeyCode) {
                 case Keys.Escape:
                     if (isFullscreen) {  // from fullscreen to window
@@ -1725,7 +1922,11 @@ namespace Richard_VLC
                 case Keys.OemPeriod:
                     drawTrackMarker(this.current_pos, Color.Cyan);
                     break;
+                default:
+                    handled = false;
+                    break;
             }
+            return handled;
         }
 
         //private void dataGridView1_MouseClick(object sender, MouseEventArgs e)
@@ -1743,11 +1944,18 @@ namespace Richard_VLC
 
             Init_Data();
 
+            this.darkModeToolStripMenuItem.Checked = true;
+
+        //  Toggle_Theme(true);
+
+        //  ToolStripManager.Renderer = new DarkMenuRenderer();
+
+
             this.pnlOverlay.Visible = false;
             this.labFPS.Visible = false;
             this.labSpeedIndicator.Visible = false;
 
-        //  this.labFPS.Visible = false;
+            //  this.labFPS.Visible = false;
 
             //bool itWorked = SetStyle(this.labFPS, ControlStyles.SupportsTransparentBackColor, true);
             //this.labFPS.BackColor = Color.FromArgb(16, Color.Black);
@@ -2111,7 +2319,7 @@ namespace Richard_VLC
                             string tval = this.current_speed.ToString("0.000");
                             if (tval == "1.000" || tval == "1,000") {
                                 tval = "normal speed";
-                            } else { 
+                            } else {
                                 tval += " x speed  (double click to reset)";
                             }
                             this.toolStripSpeed.Text = tval;
@@ -2607,11 +2815,19 @@ namespace Richard_VLC
         private void REH_VLC_Viewer_SizeChanged(object sender, EventArgs e)
         {
             drawSpeedMarkers();
+            drawTrackMarkers();
         }
 
         private void videoView1_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private void darkModeToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
+        {
+            bool dark_mode = this.darkModeToolStripMenuItem.Checked;
+
+            Toggle_Theme(dark_mode);
         }
 
 
