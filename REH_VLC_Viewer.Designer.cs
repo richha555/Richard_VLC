@@ -83,6 +83,7 @@
             toolStripSeparator4 = new ToolStripSeparator();
             selectAllToolStripMenuItem = new ToolStripMenuItem();
             openFileDialog1 = new OpenFileDialog();
+            editMarkersToolStripMenuItem = new ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)trackBarPlayHead).BeginInit();
             ((System.ComponentModel.ISupportInitialize)trackBarSpeed).BeginInit();
             pnlVIDEO.SuspendLayout();
@@ -442,7 +443,7 @@
             // 
             // settingsToolStripMenuItem
             // 
-            settingsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { darkModeToolStripMenuItem });
+            settingsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { darkModeToolStripMenuItem, editMarkersToolStripMenuItem });
             settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
             settingsToolStripMenuItem.Size = new Size(61, 20);
             settingsToolStripMenuItem.Text = "&Settings";
@@ -451,7 +452,7 @@
             // 
             darkModeToolStripMenuItem.CheckOnClick = true;
             darkModeToolStripMenuItem.Name = "darkModeToolStripMenuItem";
-            darkModeToolStripMenuItem.Size = new Size(132, 22);
+            darkModeToolStripMenuItem.Size = new Size(180, 22);
             darkModeToolStripMenuItem.Text = "Dark Mode";
             darkModeToolStripMenuItem.CheckedChanged += darkModeToolStripMenuItem_CheckedChanged;
             // 
@@ -533,6 +534,13 @@
             // openFileDialog1
             // 
             openFileDialog1.FileName = "openFileDialog1";
+            // 
+            // editMarkersToolStripMenuItem
+            // 
+            editMarkersToolStripMenuItem.Name = "editMarkersToolStripMenuItem";
+            editMarkersToolStripMenuItem.Size = new Size(180, 22);
+            editMarkersToolStripMenuItem.Text = "Edit Markers...";
+            editMarkersToolStripMenuItem.Click += editMarkersToolStripMenuItem_Click;
             // 
             // REH_VLC_Viewer
             // 
@@ -619,5 +627,6 @@
         private ToolStripStatusLabel toolStripSpring2;
         private ToolStripMenuItem settingsToolStripMenuItem;
         private ToolStripMenuItem darkModeToolStripMenuItem;
+        private ToolStripMenuItem editMarkersToolStripMenuItem;
     }
 }

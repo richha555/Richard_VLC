@@ -181,6 +181,13 @@ namespace Richard_VLC
         Dictionary<double, Label> speedLabels = new();
         Dictionary<double, Label> trackMarkers = new();
 
+        cVideoMarkers markerList = new();
+
+        public cVideoMarker? Current_Marker = null;
+
+
+        frmMarkers? frmEditMarkers = null;
+
         public LibVLC _libVLC;
         public MediaPlayer _mp;
         public Media media;
@@ -1494,9 +1501,17 @@ namespace Richard_VLC
         {
             double margin = 12.0;
 
-            foreach (KeyValuePair<double, Label> kv in this.trackMarkers) {
-                double pos = kv.Key;
-                Label lab = kv.Value;
+            //foreach (KeyValuePair<double, Label> kv in this.trackMarkers) {
+            //    double pos = kv.Key;
+            //    Label lab = kv.Value;
+
+            this.trackMarkers.Clear();
+
+            foreach (cVideoMarker marker in this.markerList.markers) {
+                double pos = marker.Position;
+                Label lab = marker.Label;
+
+                this.trackMarkers.Add(pos, lab);
 
                 int x0 = (int)((double)(this.trackBarPlayHead.Width - 2.0 * margin) * (pos / (double)this.trackBarPlayHead.Maximum));
                 x0 += (this.trackBarPlayHead.Left + (int)margin);
@@ -1581,8 +1596,8 @@ namespace Richard_VLC
                 Color butColor = darkMode ? bkgnd : Color.Transparent;
                 Color butHoverColor = darkMode ? Color.FromArgb(70, 70, 75) : Color.AntiqueWhite;
                 if (parent is System.Windows.Forms.Button but) {
-                //  parent.UseVisualStyleBackColor = useStyle;
-                //  parent.BackColor = butColor;
+                    //  parent.UseVisualStyleBackColor = useStyle;
+                    //  parent.BackColor = butColor;
                     but.FlatAppearance.MouseOverBackColor = butHoverColor;
                 }
             }
@@ -1655,14 +1670,14 @@ namespace Richard_VLC
                     new DarkMenuRenderer();
                 //  new ToolStripProfessionalRenderer(new DarkColorTable());
 
-            //  menuStrip.ForeColor = Color.White;
+                //  menuStrip.ForeColor = Color.White;
 
             } else {
                 menuStrip.RenderMode = ToolStripRenderMode.ManagerRenderMode;
                 menuStrip.Renderer =
                     new ToolStripProfessionalRenderer(new ProfessionalColorTable());
 
-            //  menuStrip.ForeColor = SystemColors.ControlText;
+                //  menuStrip.ForeColor = SystemColors.ControlText;
             }
         }
         private void ApplyToolstripTheme(bool darkMode, ToolStrip toolStrip)
@@ -1873,7 +1888,7 @@ namespace Richard_VLC
 
             bool handled = ShortcutEvent(this, new KeyEventArgs(keyData));
 
-            if (handled) { 
+            if (handled) {
                 return true;
             }
 
@@ -1920,7 +1935,10 @@ namespace Richard_VLC
                     Button_Forward_End();
                     break;
                 case Keys.OemPeriod:
-                    drawTrackMarker(this.current_pos, Color.Cyan);
+                    //Label lab = drawTrackMarker(this.current_pos, Color.Cyan);
+                    //this.markerList.Add_Marker(this.current_pos, this.current_time, "", "", lab.ForeColor, lab);
+                    NewMarker_at_CurrPos();
+                    Update_Markers();
                     break;
                 default:
                     handled = false;
@@ -1946,9 +1964,9 @@ namespace Richard_VLC
 
             this.darkModeToolStripMenuItem.Checked = true;
 
-        //  Toggle_Theme(true);
+            //  Toggle_Theme(true);
 
-        //  ToolStripManager.Renderer = new DarkMenuRenderer();
+            //  ToolStripManager.Renderer = new DarkMenuRenderer();
 
 
             this.pnlOverlay.Visible = false;
@@ -2830,6 +2848,11 @@ namespace Richard_VLC
             Toggle_Theme(dark_mode);
         }
 
+        private void editMarkersToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Edit_Markers();
+        }
+
 
         //Public event EncounteredError
         //Public event EndReached
@@ -2849,6 +2872,125 @@ namespace Richard_VLC
         //Public event TitleChanged
         //Public event VideoOutChanged
 
+        // ============================================================================ Marker Editor
+
+        private void Edit_Markers()
+        {
+            try {
+                if (this.frmEditMarkers != null) {
+                    this.frmEditMarkers.Show();
+                }
+            } catch (Exception ex) {
+                this.frmEditMarkers = null;
+            }
+            if (this.frmEditMarkers is null) {
+                this.frmEditMarkers = new frmMarkers();
+
+                this.frmEditMarkers.MainForm = this;
+                this.frmEditMarkers.MarkerList = this.markerList;
+                this.frmEditMarkers.Current_Marker = this.Current_Marker;
+
+
+                this.frmEditMarkers.Editor_NewMarker_at_CurrPos += Editor_NewMarker_at_CurrPos;
+                this.frmEditMarkers.Editor_Move_Marker_to_CurrPos += Editor_Move_Marker_to_CurrPos;
+                this.frmEditMarkers.Editor_Move_Marker_Left_1 += Editor_Move_Marker_Left_1;
+                this.frmEditMarkers.Editor_Move_Marker_Right_1 += Editor_Move_Marker_Right_1;
+                this.frmEditMarkers.Editor_Remove_Marker += Editor_Remove_Marker;
+                this.frmEditMarkers.Editor_GoTo_Marker += Editor_GoTo_Marker;
+                this.frmEditMarkers.Editor_Change_Marker_Color += Editor_Change_Marker_Color;
+
+                this.frmEditMarkers.Display_MarkerList();
+
+                this.frmEditMarkers.Show();
+            }
+            this.frmEditMarkers.Text = this.Text + " - Edit Markers"; 
+            this.frmEditMarkers.Activate();
+        }
+
+        private void Update_Markers()
+        {
+            try {
+                if (this.frmEditMarkers != null) {
+                    this.frmEditMarkers.Display_MarkerList();
+                }
+            } catch (Exception) {
+                this.frmEditMarkers = null;
+            }
+        }
+
+        private cVideoMarker NewMarker_at_CurrPos()
+        {
+            if (this.Current_Marker != null) {
+                if (this.Current_Marker.Position == this.current_pos) {
+                    return this.Current_Marker;  // don't create two markers on top of each other
+                }
+            }
+            Label lab = drawTrackMarker(this.current_pos, Color.Cyan);
+            cVideoMarker marker = this.markerList.Add_Marker(this.current_pos, this.current_time, "", "", lab.ForeColor, lab);
+            //  Update_Markers();
+            return marker;
+        }
+
+        private void Editor_NewMarker_at_CurrPos(object sender, EventArgs e)
+        {
+            frmMarkers frm = (frmMarkers)sender;
+            cVideoMarker marker = NewMarker_at_CurrPos();
+            frm.Current_Marker = marker;
+            frm.Display_MarkerList();
+        }
+        private void Editor_Move_Marker_to_CurrPos(object sender, EventArgs e)
+        {
+            frmMarkers frm = (frmMarkers)sender;
+            if (frm.Current_Marker == null) return;
+            frm.Current_Marker.Position = this.current_pos;
+            frm.Current_Marker.Offset = this.current_time;
+            this.markerList.Rearrange_Markers();
+            drawTrackMarkers();
+            frm.Display_MarkerList();
+        }
+        private void Editor_Change_Marker_Color(object sender, EventArgs e)
+        {
+            frmMarkers frm = (frmMarkers)sender;
+            if (frm.Current_Marker == null) return;
+            //double pos = frm.Current_Marker.Position;
+            Label? lab = frm.Current_Marker.Label;
+            if (lab != null) {
+                lab.ForeColor = frm.Current_Marker.Color;
+            }
+        }
+        private void Editor_Move_Marker_Left_1(object sender, EventArgs e)
+        {
+            frmMarkers frm = (frmMarkers)sender;
+            if (frm.Current_Marker == null) return;
+        }
+        private void Editor_Move_Marker_Right_1(object sender, EventArgs e)
+        {
+            frmMarkers frm = (frmMarkers)sender;
+            if (frm.Current_Marker == null) return;
+        }
+
+        private void Editor_Remove_Marker(object sender, EventArgs e)
+        {
+            frmMarkers frm = (frmMarkers)sender;
+            if (frm.Current_Marker == null) return;
+        }
+        private void Editor_GoTo_Marker(object sender, EventArgs e)
+        {
+            frmMarkers frm = (frmMarkers)sender;
+            cVideoMarker marker = frm.Current_Marker;
+            if (marker == null) { return; }
+            double pos = marker.Position;
+
+            Debug.WriteLine($"Editor_GoTo_Marker: TO FRAME {pos}");
+
+            //  TimeSpan tpos = TimeSpan.FromSeconds(pos / this.frame_rate);
+            TimeSpan tpos = new TimeSpan(0);
+
+            Set_Current_Pos(pos, tpos, update_playhead: true, seek_in_video: true);
+
+            Update_Value("current_pos");
+            Update_Value("current_time");
+        }
     }
 
 }
