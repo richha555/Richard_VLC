@@ -119,7 +119,8 @@
             butLeft.TabIndex = 1;
             butLeft.Text = "<= Move Marker Left";
             butLeft.UseVisualStyleBackColor = true;
-            butLeft.Click += butLeft_Click;
+            butLeft.MouseDown += butLeft_MouseDown;
+            butLeft.MouseUp += butLeft_MouseUp;
             // 
             // butRight
             // 
@@ -130,7 +131,8 @@
             butRight.TabIndex = 1;
             butRight.Text = "Move => Marker Right";
             butRight.UseVisualStyleBackColor = true;
-            butRight.Click += butRight_Click;
+            butRight.MouseDown += butRight_MouseDown;
+            butRight.MouseUp += butRight_MouseUp;
             // 
             // butDel
             // 

@@ -8,6 +8,7 @@ using System.Text;
 using System.Windows.Forms;
 using System.Windows.Forms.VisualStyles;
 using LibVLCSharp.Shared;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace Richard_VLC
 {
@@ -16,8 +17,10 @@ namespace Richard_VLC
         public const int colGuid = 6;
         public event EventHandler Editor_NewMarker_at_CurrPos;
         public event EventHandler Editor_Move_Marker_to_CurrPos;
-        public event EventHandler Editor_Move_Marker_Left_1;
-        public event EventHandler Editor_Move_Marker_Right_1;
+        public event EventHandler Editor_Move_Marker_Left_1_Start;
+        public event EventHandler Editor_Move_Marker_Left_1_End;
+        public event EventHandler Editor_Move_Marker_Right_1_Start;
+        public event EventHandler Editor_Move_Marker_Right_1_End;
         public event EventHandler Editor_Remove_Marker;
         public event EventHandler Editor_GoTo_Marker;
         public event EventHandler Editor_Change_Marker_Color;
@@ -115,21 +118,42 @@ namespace Richard_VLC
             this.Editor_NewMarker_at_CurrPos?.Invoke(this, EventArgs.Empty);
 
         }
-
-        private void butLeft_Click(object sender, EventArgs e)
+        private void butLeft_MouseDown(object sender, MouseEventArgs e)
         {
-            this.Editor_Move_Marker_Left_1?.Invoke(this, EventArgs.Empty);
+            this.Editor_GoTo_Marker?.Invoke(this, EventArgs.Empty);
+            this.Editor_Move_Marker_Left_1_Start?.Invoke(this, EventArgs.Empty);
         }
+
+        private void butLeft_MouseUp(object sender, MouseEventArgs e)
+        {
+            this.Editor_Move_Marker_Left_1_End?.Invoke(this, EventArgs.Empty);
+
+        }
+
+        private void butRight_MouseDown(object sender, MouseEventArgs e)
+        {
+            this.Editor_GoTo_Marker?.Invoke(this, EventArgs.Empty);
+            this.Editor_Move_Marker_Right_1_Start?.Invoke(this, EventArgs.Empty);
+        }
+        private void butRight_MouseUp(object sender, MouseEventArgs e)
+        {
+            this.Editor_Move_Marker_Right_1_End?.Invoke(this, EventArgs.Empty);
+        }
+
+        //private void butLeft_Click(object sender, EventArgs e)
+        //{
+        //    this.Editor_Move_Marker_Left_1?.Invoke(this, EventArgs.Empty);
+        //}
 
         private void butHere_Click(object sender, EventArgs e)
         {
             this.Editor_Move_Marker_to_CurrPos?.Invoke(this, EventArgs.Empty);
         }
 
-        private void butRight_Click(object sender, EventArgs e)
-        {
-            this.Editor_Move_Marker_Right_1?.Invoke(this, EventArgs.Empty);
-        }
+        //private void butRight_Click(object sender, EventArgs e)
+        //{
+        //    this.Editor_Move_Marker_Right_1?.Invoke(this, EventArgs.Empty);
+        //}
 
         private void butDel_Click(object sender, EventArgs e)
         {
@@ -306,6 +330,8 @@ namespace Richard_VLC
                     if (val != null) {
                         if (double.TryParse(sval, out pos)) {
                             marker.Position = pos;
+                            // TODO: Move Marker to pos
+                            //       recalculate offset
                             res = true;
                         }
                     }
@@ -318,7 +344,10 @@ namespace Richard_VLC
                     break;
                 case 1:
                     res = marker.ParseOffset(sval);
-                    if (!res) {
+                    if (res) {
+                        // TODO: Move Marker to offset
+                        //       recalculate position
+                    } else {
                         // invalid offset entered
                         _loading_data = true;
                         this.dataGridView1[colidx, rowidx].Value = marker.Offset;
@@ -328,6 +357,7 @@ namespace Richard_VLC
                 case 2:
                     if (!string.IsNullOrWhiteSpace(sval)) {
                         marker.Title = sval;
+                        // TODO: change label's tool-tip
                         res = true;
                     }
                     if (!res) {
@@ -350,6 +380,7 @@ namespace Richard_VLC
                 case 5:
                     if (sval.Contains(">")) {
                         marker.StartStop = eStartStop.BEGIN;
+                        // TODO: set BEGIN in Video Editor
                         res = true;
                         // clear any other start markers
                         foreach (cVideoMarker m in this.MarkerList.markers) {
@@ -368,6 +399,7 @@ namespace Richard_VLC
                         }
                     } else if (sval.Contains("<")) {
                         marker.StartStop = eStartStop.END;
+                        // TODO: set END in Video Editor
                         res = true;
                         // clear any other end markers
                         foreach (cVideoMarker m in this.MarkerList.markers) {
@@ -386,6 +418,9 @@ namespace Richard_VLC
                         }
                     } else if (string.IsNullOrWhiteSpace(sval)) {
                         marker.StartStop = eStartStop.NONE;
+                        // TODO: clear BEGIN or END in Video Editor
+                        // this.toolTip1.SetToolTip(lab, marker.Title);
+                        //       if this marker was a BEGIN or END
                         res = true;
                     } else {
                         // user entered invalid value ...
@@ -394,10 +429,11 @@ namespace Richard_VLC
                         _loading_data = false;
                     }
                     break;
-                //case 6:
-                //    marker.MarkerGUID = sval;
-                //    break;
+                    //case 6:
+                    //    marker.MarkerGUID = sval;
+                    //    break;
             }
         }
+
     }
 }

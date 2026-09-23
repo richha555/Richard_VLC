@@ -67,6 +67,7 @@
             exitToolStripMenuItem = new ToolStripMenuItem();
             settingsToolStripMenuItem = new ToolStripMenuItem();
             darkModeToolStripMenuItem = new ToolStripMenuItem();
+            editMarkersToolStripMenuItem = new ToolStripMenuItem();
             contentsToolStripMenuItem = new ToolStripMenuItem();
             indexToolStripMenuItem = new ToolStripMenuItem();
             searchToolStripMenuItem = new ToolStripMenuItem();
@@ -83,7 +84,6 @@
             toolStripSeparator4 = new ToolStripSeparator();
             selectAllToolStripMenuItem = new ToolStripMenuItem();
             openFileDialog1 = new OpenFileDialog();
-            editMarkersToolStripMenuItem = new ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)trackBarPlayHead).BeginInit();
             ((System.ComponentModel.ISupportInitialize)trackBarSpeed).BeginInit();
             pnlVIDEO.SuspendLayout();
@@ -322,6 +322,9 @@
             labMarker.TabIndex = 7;
             labMarker.Text = "^";
             labMarker.Visible = false;
+            labMarker.MouseDown += labMarker_MouseDown;
+            labMarker.MouseMove += labMarker_MouseMove;
+            labMarker.MouseUp += labMarker_MouseUp;
             // 
             // labSpeed
             // 
@@ -452,9 +455,16 @@
             // 
             darkModeToolStripMenuItem.CheckOnClick = true;
             darkModeToolStripMenuItem.Name = "darkModeToolStripMenuItem";
-            darkModeToolStripMenuItem.Size = new Size(180, 22);
+            darkModeToolStripMenuItem.Size = new Size(148, 22);
             darkModeToolStripMenuItem.Text = "Dark Mode";
             darkModeToolStripMenuItem.CheckedChanged += darkModeToolStripMenuItem_CheckedChanged;
+            // 
+            // editMarkersToolStripMenuItem
+            // 
+            editMarkersToolStripMenuItem.Name = "editMarkersToolStripMenuItem";
+            editMarkersToolStripMenuItem.Size = new Size(148, 22);
+            editMarkersToolStripMenuItem.Text = "Edit Markers...";
+            editMarkersToolStripMenuItem.Click += editMarkersToolStripMenuItem_Click;
             // 
             // contentsToolStripMenuItem
             // 
@@ -534,13 +544,6 @@
             // openFileDialog1
             // 
             openFileDialog1.FileName = "openFileDialog1";
-            // 
-            // editMarkersToolStripMenuItem
-            // 
-            editMarkersToolStripMenuItem.Name = "editMarkersToolStripMenuItem";
-            editMarkersToolStripMenuItem.Size = new Size(180, 22);
-            editMarkersToolStripMenuItem.Text = "Edit Markers...";
-            editMarkersToolStripMenuItem.Click += editMarkersToolStripMenuItem_Click;
             // 
             // REH_VLC_Viewer
             // 
