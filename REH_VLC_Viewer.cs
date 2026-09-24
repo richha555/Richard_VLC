@@ -192,9 +192,9 @@ namespace Richard_VLC
         Dictionary<double, System.Windows.Forms.Label> speedLabels = new();
         Dictionary<double, Label> trackMarkers = new();
 
-        cVideoMarkers markerList = new();
+        cVideoMarkers MarkerList = new();
 
-        public cVideoMarker? Current_Marker = null;
+        //public cVideoMarker? Current_Marker = null;
 
         bool drag_marker = false;
 
@@ -259,7 +259,8 @@ namespace Richard_VLC
                     }
                     if (!this.lock_info && !this.show_info && this.dataGridView1.Visible) {
                         if ((DateTime.Now - this.lastInfo).TotalSeconds > 0.5) { // hide after N secs
-                            this.dataGridView1.Visible = false;
+                        //  this.dataGridView1.Visible = false;
+                            show_hide_info(false);
                         }
                     }
                     if (!this.lock_jog_shuttle && !this.show_jog_shuttle && this.trackBarJogShuttle.Visible) {
@@ -370,9 +371,10 @@ namespace Richard_VLC
                         }
                     }
 
-                    if (!this.show_zoom_viewer && this.pnlVideoFull.Visible) {
+                    if (!this.lock_zoom_viewer && (!this.show_zoom_viewer && this.pnlVideoFull.Visible)) {
                         if ((DateTime.Now - this.lastZoomPan).TotalSeconds > 0.5) { // hide after N secs
-                            this.pnlVideoFull.Visible = false;
+                            //this.pnlVideoFull.Visible = false;
+                            show_hide_navigator(false);
                         }
                     }
                 }
@@ -534,12 +536,33 @@ namespace Richard_VLC
             return retval;
         }
 
+        private void dataGridView1_CellFormatting(object sender,
+            System.Windows.Forms.DataGridViewCellFormattingEventArgs e)
+        {
+            Color bkgnd = this.dark_mode ? Color.FromArgb(45, 45, 48) : SystemColors.Control;
+            Color foregnd = this.dark_mode ? Color.White : SystemColors.ControlText;
+            e.CellStyle.BackColor = bkgnd;
+            e.CellStyle.ForeColor = foregnd;
+        }
+
         private void show_hide_speed(bool is_visible)
         {
             this.trackBarSpeed.Visible = is_visible;
             foreach (var lab in this.speedLabels.Values) {
                 lab.Visible = is_visible;
             }
+        }
+        private void show_hide_navigator(bool is_visible)
+        {
+            this.show_zoom_viewer = is_visible;
+            this.pnlVideoFull.Visible = is_visible;
+            videoNavMenuItem1.Checked = is_visible;
+        }
+        private void show_hide_info(bool is_visible)
+        {
+            this.show_info = is_visible;
+            this.dataGridView1.Visible = is_visible;
+            infoBoxMenuItem2.Checked = is_visible;
         }
 
         private void fetch_video_properties(string? AspectRatio, float fps, long length_ms)
@@ -1539,7 +1562,7 @@ namespace Richard_VLC
 
             this.trackMarkers.Clear();
 
-            foreach (cVideoMarker marker in this.markerList.markers) {
+            foreach (cVideoMarker marker in this.MarkerList.markers) {
                 double pos = marker.Position;
                 Label lab = marker.Label;
 
@@ -1617,9 +1640,10 @@ namespace Richard_VLC
 
         private void Toggle_Theme(bool darkMode)
         {
+            this.dark_mode = darkMode;
+
             ApplyTheme(darkMode, this);
 
-            this.dark_mode = darkMode;
         }
         private void ApplyTheme(bool darkMode, Control parent)
         {
@@ -1638,6 +1662,9 @@ namespace Richard_VLC
                 parent.BackColor = bkgnd;
             } else if (parent.Name.Contains("ToolStripMenuItem")) {
                 parent.ForeColor = foregnd; parent.BackColor = bkgnd;
+            } else if (parent.Name == "dataGridView1") {
+                parent.ForeColor = foregnd; parent.BackColor = bkgnd;
+                dataGridView1.Refresh();
             } else if (parent.Name.StartsWith("but")) {
                 bool useStyle = darkMode ? true : false;
                 Color butColor = darkMode ? bkgnd : Color.Transparent;
@@ -1759,15 +1786,15 @@ namespace Richard_VLC
             //  dragLabelDeltaX = e.X - labelStartX;
             dragStartMouseX = Cursor.Position.X;
 
-            if (this.Current_Marker != null &&
-                this.Current_Marker.Label.Name.Equals(lbl.Name)) {
+            if (this.MarkerList.Current_Marker != null &&
+                this.MarkerList.Current_Marker.Label.Name.Equals(lbl.Name)) {
                 // clicked same marker again
 
                 if (drag_marker) {
                     Debug.WriteLine("labMarker_MouseDown: cancelling drag_marker mode");
                     canceling_drag = true;  // do cancel in MouseUp
                 } else {
-                    Debug.WriteLine($"labMarker_MouseDown: re-entering drag_marker mode for marker {this.Current_Marker.Title}");
+                    Debug.WriteLine($"labMarker_MouseDown: re-entering drag_marker mode for marker {this.MarkerList.Current_Marker.Title}");
                     canceling_drag = false;
                 }
                 //if (drag_marker) {
@@ -1782,12 +1809,12 @@ namespace Richard_VLC
 
                 //    //return;
                 //} else {
-                //    Debug.WriteLine($"labMarker_MouseDown: re-entering drag_marker mode for marker {this.Current_Marker.Title}");
+                //    Debug.WriteLine($"labMarker_MouseDown: re-entering drag_marker mode for marker {this.MarkerList.Current_Marker.Title}");
                 //    drag_marker = true;  // enter drag mode
                 //}
             } else {
                 // clicked new marker, start dragging it
-                cVideoMarker? marker = this.markerList.markers.FirstOrDefault(x => x.Label.Name.Equals(lbl.Name));
+                cVideoMarker? marker = this.MarkerList.markers.FirstOrDefault(x => x.Label.Name.Equals(lbl.Name));
                 if (marker == null) {
                     Debug.WriteLine("labMarker_MouseDown: ERROR: can't find label's marker!");
                     draggingLabel = false;
@@ -1795,9 +1822,11 @@ namespace Richard_VLC
                     return;
                 }
                 Debug.WriteLine($"labMarker_MouseDown: selecting marker {marker.Title}");
-                this.Current_Marker = marker;
+                this.MarkerList.Current_Marker = marker;
                 canceling_drag = false;
             }
+
+            Goto_Current_Marker_Row();
 
             drag_marker = true;  // enter drag mode
 
@@ -1805,11 +1834,11 @@ namespace Richard_VLC
 
             Debug.WriteLine($"labMarker_MouseDown: Clicked label: {lbl.Name}");
 
-            double pos = this.Current_Marker.Position;
+            double pos = this.MarkerList.Current_Marker.Position;
             TimeSpan tpos = new TimeSpan(0);
 
-            this.hold_marker_pos = this.Current_Marker.Position;
-            this.hold_marker_offs = this.Current_Marker.Offset;
+            this.hold_marker_pos = this.MarkerList.Current_Marker.Position;
+            this.hold_marker_offs = this.MarkerList.Current_Marker.Offset;
 
             Debug.WriteLine($"labMarker_MouseDown: Moving Playhead & Video to : {pos}");
 
@@ -1831,10 +1860,10 @@ namespace Richard_VLC
 
                 // assume user clicked and did not drag
 
-                if (this.Current_Marker != null) {
+                if (this.MarkerList.Current_Marker != null) {
                     // don't let marker move
-                    this.Current_Marker.Position = this.hold_marker_pos;
-                    this.Current_Marker.Offset = this.hold_marker_offs;
+                    this.MarkerList.Current_Marker.Position = this.hold_marker_pos;
+                    this.MarkerList.Current_Marker.Offset = this.hold_marker_offs;
                 }
                 // don't let label move
                 lbl.Left = labelStartX;
@@ -1851,15 +1880,15 @@ namespace Richard_VLC
                 } else {
                     // user clicked on label to enter drag-mode
 
-                    Debug.WriteLine($"labMarker_MouseUp: re-entering drag_marker mode for marker {this.Current_Marker.Title}");
+                    Debug.WriteLine($"labMarker_MouseUp: re-entering drag_marker mode for marker {this.MarkerList.Current_Marker.Title}");
 
                     drag_marker = true;  // <<< here we (re) ENTER drag-mode
                 }
             } else {
                 // assume user was draging / cancel drag-mode
 
-                if (this.Current_Marker != null) {
-                    Debug.WriteLine($"labMarker_MouseUp:ending drag for marker {this.Current_Marker.Title}");
+                if (this.MarkerList.Current_Marker != null) {
+                    Debug.WriteLine($"labMarker_MouseUp:ending drag for marker {this.MarkerList.Current_Marker.Title}");
                 }
 
                 drag_marker = false;
@@ -1879,8 +1908,8 @@ namespace Richard_VLC
                 //double pos = ((double)x0 * (double)this.trackBarPlayHead.Maximum) / ((double)this.trackBarPlayHead.Width - 2.0 * margin);
                 //TimeSpan offs = TimeSpan.FromSeconds(Math.Max(0.0, pos) / this.frame_rate);
 
-                //this.Current_Marker.Position = pos;
-                //this.Current_Marker.Offset = offs;
+                //this.MarkerList.Current_Marker.Position = pos;
+                //this.MarkerList.Current_Marker.Offset = offs;
             }
 
             draggingLabel = false;
@@ -1909,8 +1938,8 @@ namespace Richard_VLC
                 double pos = ((double)x0 * (double)this.trackBarPlayHead.Maximum) / ((double)this.trackBarPlayHead.Width - 2.0 * margin);
                 TimeSpan offs = TimeSpan.FromSeconds(Math.Max(0.0, pos) / this.frame_rate);
 
-                this.Current_Marker.Position = pos;
-                this.Current_Marker.Offset = offs;
+                this.MarkerList.Current_Marker.Position = pos;
+                this.MarkerList.Current_Marker.Offset = offs;
 
                 TimeSpan tpos = new TimeSpan(0);
 
@@ -1918,7 +1947,7 @@ namespace Richard_VLC
 
                 Set_Current_Pos(pos, tpos, update_playhead: true, seek_in_video: true);
 
-                this.markerList.Rearrange_Markers();
+                this.MarkerList.Rearrange_Markers();
 
                 Update_Markers();
             }
@@ -1931,7 +1960,7 @@ namespace Richard_VLC
 
             Set_MarkerLabel_DragMode_Color(dragging: drag_marker);
 
-            foreach (cVideoMarker m in this.markerList.markers) {
+            foreach (cVideoMarker m in this.MarkerList.markers) {
                 if (m.Label != null && !m.Label.Name.Equals(lbl.Name)) {
                     m.Label.BackColor = this.labSpeed.BackColor;  // will have been themed
                 }
@@ -1946,11 +1975,11 @@ namespace Richard_VLC
 
         private void Set_MarkerLabel_DragMode_Color(bool dragging)
         {
-            if (this.Current_Marker == null || this.Current_Marker.Label == null) return;
+            if (this.MarkerList.Current_Marker == null || this.MarkerList.Current_Marker.Label == null) return;
 
-            Color clr = dragging ? Color.Goldenrod : Color.DarkGoldenrod;
-            if (this.Current_Marker.Label.BackColor != clr) {
-                this.Current_Marker.Label.BackColor = clr;
+            Color clr = dragging ? Color.Goldenrod : Color.SaddleBrown;
+            if (this.MarkerList.Current_Marker.Label.BackColor != clr) {
+                this.MarkerList.Current_Marker.Label.BackColor = clr;
             }
         }
 
@@ -2252,11 +2281,13 @@ namespace Richard_VLC
             this.videoZoomAspect = (double)this.pnlVideoZoom.Width / (double)this.pnlVideoZoom.Height;
 
             if (!this.always_display_controls) {
-                this.pnlVideoFull.Visible = false;
+                //this.pnlVideoFull.Visible = false;
+                show_hide_navigator(false);
                 //  this.trackBarSpeed.Visible = false;
                 show_hide_speed(false);
                 this.trackBarJogShuttle.Visible = false;
-                this.dataGridView1.Visible = false;
+                //this.dataGridView1.Visible = false;
+                show_hide_info(false);
             }
 
             int x0 = (int)(0.5 * (double)this.pnlVIDEO.Width);
@@ -2316,12 +2347,14 @@ namespace Richard_VLC
             show_hide_speed(this.show_track_speed);  // speed control on left, no lock, so it should fade
             this.lastTrackSpeed = DateTime.MinValue;
 
-            this.show_zoom_viewer = false;
-            this.pnlVideoFull.Visible = this.show_zoom_viewer;  // zoom/pan viewer
+            //this.show_zoom_viewer = false;
+            //this.pnlVideoFull.Visible = this.show_zoom_viewer;  // zoom/pan viewer
+            show_hide_navigator(false);
             this.lastZoomPan = DateTime.MinValue;
 
-            this.show_info = false;
-            this.dataGridView1.Visible = this.show_info;  // information
+            //this.show_info = false;
+            //this.dataGridView1.Visible = this.show_info;  // information
+            show_hide_info(false);
             this.lastInfo = DateTime.MinValue;
 
             this.show_buttons = true;
@@ -2558,10 +2591,12 @@ namespace Richard_VLC
                             break;
                         case "zoom":
                             double fact = (double)this.pnlVideoFull.Width / (double)this.videoZoomWidth;
-                            if (fact < 1.01) {
+                            double zoomPercent = ((double)this.pnlVideoFull.Width / (double)this.videoZoomWidth) * 100.0;
+                            if (fact < 1.01 || zoomPercent < 101.0) {
                                 this.toolStripZoom.Text = "";
                             } else {
-                                this.toolStripZoom.Text = String.Format("  -  Zoom {0:0.00}   (double click to reset zoom)", fact);
+                            //  this.toolStripZoom.Text = String.Format("  -  Zoom {0:0.00}   (double click to reset zoom)", fact);
+                                this.toolStripZoom.Text = String.Format("  -  Zoom {0:000}%   (double click to reset zoom)", zoomPercent);
                             }
                             row["Value"] = fact;
                             break;
@@ -2820,15 +2855,17 @@ namespace Richard_VLC
             if (this.pnlVideoFull.Visible) {
                 // hide viewer
                 Debug.WriteLine("pnlVideoFull_MouseClick: hide viewer");
-                this.pnlVideoFull.Visible = false;
+                //this.pnlVideoFull.Visible = false;
                 this.lastZoomPan = DateTime.MinValue;
-                this.show_zoom_viewer = false;
+                //this.show_zoom_viewer = false;
+                show_hide_navigator(false);
             } else {
                 // show viewer and lock it
                 Debug.WriteLine("pnlVideoFull_MouseClick: SHOW viewer");
                 this.lastZoomPan = DateTime.MinValue;
-                this.pnlVideoFull.Visible = true;
-                this.show_zoom_viewer = true;
+                //this.pnlVideoFull.Visible = true;
+                //this.show_zoom_viewer = true;
+                show_hide_navigator(true);
             }
             Update_Value("zoom");
         }
@@ -2902,16 +2939,16 @@ namespace Richard_VLC
                     }
                     this.lastTrackSpeed = DateTime.Now;
 
-                    this.show_info = false;
+                    //this.show_info = false;
                     this.show_jog_shuttle = false;
                     this.show_play_head = false;
                     this.in_buttons = false;
                 } else if ((e.X > (pnlVIDEO.Width - this.dataGridView1.Width - 15)) && (e.Y <= this.dataGridView1.Height)) {
                     // in INFO Box
                     if ((e.X > (pnlVIDEO.Width - 100)) && (e.Y < 100)) {
-                        if (!this.dataGridView1.Visible)
-                            this.dataGridView1.Visible = true;
-                        this.show_info = true;
+                        //if (!this.dataGridView1.Visible)
+                        //    this.dataGridView1.Visible = true;
+                        //this.show_info = true;
                     }
                     this.lastInfo = DateTime.Now;
 
@@ -2935,13 +2972,13 @@ namespace Richard_VLC
                     }
 
                     this.show_track_speed = false;
-                    this.show_info = false;
+                    //this.show_info = false;
                     this.in_buttons = false;
                 } else if ((e.X < (this.trackBarPlayHead.Left)) && (e.Y > (this.butStop.Top - 10))) {
                     this.in_buttons = true;
                 } else {
                     this.show_track_speed = false;
-                    this.show_info = false;
+                    //this.show_info = false;
                     this.show_jog_shuttle = false;
                     this.show_play_head = false;
                     this.in_buttons = false;
@@ -3085,6 +3122,32 @@ namespace Richard_VLC
 
             Toggle_Theme(dark_mode);
         }
+        private void videoNavMenuItem1_CheckedChanged(object sender, EventArgs e)
+        {
+            bool nav_box_visible = this.videoNavMenuItem1.Checked;
+
+            // this.show_zoom_viewer = nav_box_visible;
+
+            this.lock_zoom_viewer = true;
+
+            // this.pnlVideoFull.Visible = this.show_zoom_viewer;
+
+            show_hide_navigator(nav_box_visible);
+        }
+
+        private void infoBoxMenuItem2_CheckedChanged(object sender, EventArgs e)
+        {
+            bool info_box_visible = this.infoBoxMenuItem2.Checked;
+
+            //this.show_info = info_box_visible;
+
+            this.lock_info = true;
+
+            //this.dataGridView1.Visible = this.show_info;
+
+            show_hide_info(info_box_visible);
+        }
+
 
         private void editMarkersToolStripMenuItem_Click(object sender, EventArgs e)
         {
@@ -3125,8 +3188,8 @@ namespace Richard_VLC
                 this.frmEditMarkers = new frmMarkers();
 
                 this.frmEditMarkers.MainForm = this;
-                this.frmEditMarkers.MarkerList = this.markerList;
-                this.frmEditMarkers.Current_Marker = this.Current_Marker;
+                this.frmEditMarkers.MarkerList = this.MarkerList;
+            //  this.frmEditMarkers.MarkerList.Current_Marker = this.MarkerList.Current_Marker;
 
 
                 this.frmEditMarkers.Editor_NewMarker_at_CurrPos += Editor_NewMarker_at_CurrPos;
@@ -3138,6 +3201,7 @@ namespace Richard_VLC
                 this.frmEditMarkers.Editor_Remove_Marker += Editor_Remove_Marker;
                 this.frmEditMarkers.Editor_GoTo_Marker += Editor_GoTo_Marker;
                 this.frmEditMarkers.Editor_Change_Marker_Color += Editor_Change_Marker_Color;
+                this.frmEditMarkers.Editor_Marker_Change += Editor_Marker_Change;
 
                 this.frmEditMarkers.Display_MarkerList();
 
@@ -3158,22 +3222,34 @@ namespace Richard_VLC
             }
         }
 
+        private void Goto_Current_Marker_Row()
+        {
+            try {
+                if (this.frmEditMarkers != null) {
+                //  this.frmEditMarkers.MarkerList.Current_Marker = this.MarkerList.Current_Marker;
+                    this.frmEditMarkers.Goto_Current_Marker();
+                }
+            } catch (Exception) {
+                this.frmEditMarkers = null;
+            }
+        }
+
         private cVideoMarker NewMarker_at_CurrPos()
         {
-            if (this.Current_Marker != null) {
-                if (this.Current_Marker.Position == this.current_pos) {
+            if (this.MarkerList.Current_Marker != null) {
+                if (this.MarkerList.Current_Marker.Position == this.current_pos) {
                     Debug.WriteLine($"NewMarker_at_CurrPos:  SKIPPING creating new marker @ {this.current_pos} (already exists)");
-                    return this.Current_Marker;  // don't create two markers on top of each other
+                    return this.MarkerList.Current_Marker;  // don't create two markers on top of each other
                 }
             }
             Debug.WriteLine($"NewMarker_at_CurrPos:  creating new marker @ {this.current_pos}");
 
             Label lab = drawTrackMarker(this.current_pos, Color.Cyan);
 
-            cVideoMarker marker = this.markerList.Add_Marker(this.current_pos, this.current_time, "", "", lab.ForeColor, lab);
+            cVideoMarker marker = this.MarkerList.Add_Marker(this.current_pos, this.current_time, "", "", lab.ForeColor, lab);
 
             // adding a marker rearranges markers and can change labels
-            foreach (cVideoMarker m in this.markerList.markers) {
+            foreach (cVideoMarker m in this.MarkerList.markers) {
                 this.toolTip1.SetToolTip(m.Label, m.Title);
             }
 
@@ -3188,18 +3264,18 @@ namespace Richard_VLC
 
             cVideoMarker marker = NewMarker_at_CurrPos();
 
-            frm.Current_Marker = marker;
+            frm.MarkerList.Current_Marker = marker;
 
             frm.Display_MarkerList();
         }
         private void Move_Marker_to_CurrPos()
         {
-            if (this.Current_Marker == null) { return; }
+            if (this.MarkerList.Current_Marker == null) { return; }
 
-            this.Current_Marker.Position = this.current_pos;
-            this.Current_Marker.Offset = this.current_time;
+            this.MarkerList.Current_Marker.Position = this.current_pos;
+            this.MarkerList.Current_Marker.Offset = this.current_time;
 
-            this.markerList.Rearrange_Markers();
+            this.MarkerList.Rearrange_Markers();
 
             drawTrackMarkers();
 
@@ -3209,16 +3285,16 @@ namespace Richard_VLC
         private void Editor_Move_Marker_to_CurrPos(object sender, EventArgs e)
         {
             frmMarkers frm = (frmMarkers)sender;
-            if (frm.Current_Marker == null) return;
+            if (frm.MarkerList.Current_Marker == null) return;
 
             drag_marker = false;  // exit drag mode (???)
 
-            Select_Label(frm.Current_Marker.Label);
+            Select_Label(frm.MarkerList.Current_Marker.Label);
 
-            frm.Current_Marker.Position = this.current_pos;
-            frm.Current_Marker.Offset = this.current_time;
+            frm.MarkerList.Current_Marker.Position = this.current_pos;
+            frm.MarkerList.Current_Marker.Offset = this.current_time;
 
-            this.markerList.Rearrange_Markers();
+            this.MarkerList.Rearrange_Markers();
 
             drawTrackMarkers();
 
@@ -3227,56 +3303,56 @@ namespace Richard_VLC
         private void Editor_Change_Marker_Color(object sender, EventArgs e)
         {
             frmMarkers frm = (frmMarkers)sender;
-            if (frm.Current_Marker == null) return;
-            //double pos = frm.Current_Marker.Position;
-            Label? lab = frm.Current_Marker.Label;
+            if (frm.MarkerList.Current_Marker == null) return;
+            //double pos = frm.MarkerList.Current_Marker.Position;
+            Label? lab = frm.MarkerList.Current_Marker.Label;
             if (lab != null) {
-                lab.ForeColor = frm.Current_Marker.Color;
+                lab.ForeColor = frm.MarkerList.Current_Marker.Color;
             }
         }
         private void Editor_Move_Marker_Left_1_Start(object sender, EventArgs e)
         {
             frmMarkers frm = (frmMarkers)sender;
-            if (frm.Current_Marker == null) return;
-            this.Current_Marker = frm.Current_Marker;
+            if (frm.MarkerList.Current_Marker == null) return;
+         // this.MarkerList.Current_Marker = frm.MarkerList.Current_Marker;
 
             drag_marker = true;  // enter drag mode
 
-            Select_Label(this.Current_Marker.Label);
+            Select_Label(frm.MarkerList.Current_Marker.Label);
 
             Button_Back_Start();
         }
         private void Editor_Move_Marker_Left_1_End(object sender, EventArgs e)
         {
             frmMarkers frm = (frmMarkers)sender;
-            if (frm.Current_Marker == null) return;
+            if (frm.MarkerList.Current_Marker == null) return;
 
             drag_marker = false;  // exit drag mode
 
-            DeSelect_Label(frm.Current_Marker.Label);
+            DeSelect_Label(frm.MarkerList.Current_Marker.Label);
 
             Button_Back_End();
         }
         private void Editor_Move_Marker_Right_1_Start(object sender, EventArgs e)
         {
             frmMarkers frm = (frmMarkers)sender;
-            if (frm.Current_Marker == null) return;
-            this.Current_Marker = frm.Current_Marker;
+            if (frm.MarkerList.Current_Marker == null) return;
+        //  this.MarkerList.Current_Marker = frm.MarkerList.Current_Marker;
 
             drag_marker = true;  // enter drag mode
 
-            Select_Label(this.Current_Marker.Label);
+            Select_Label(frm.MarkerList.Current_Marker.Label);
 
             Button_Forward_Start();
         }
         private void Editor_Move_Marker_Right_1_End(object sender, EventArgs e)
         {
             frmMarkers frm = (frmMarkers)sender;
-            if (frm.Current_Marker == null) return;
+            if (frm.MarkerList.Current_Marker == null) return;
 
             drag_marker = false;  // exit drag mode
 
-            DeSelect_Label(frm.Current_Marker.Label);
+            DeSelect_Label(frm.MarkerList.Current_Marker.Label);
 
             Button_Forward_End();
         }
@@ -3284,12 +3360,12 @@ namespace Richard_VLC
         private void Editor_Remove_Marker(object sender, EventArgs e)
         {
             frmMarkers frm = (frmMarkers)sender;
-            if (frm.Current_Marker == null) return;
+            if (frm.MarkerList.Current_Marker == null) return;
         }
         private void Editor_GoTo_Marker(object sender, EventArgs e)
         {
             frmMarkers frm = (frmMarkers)sender;
-            cVideoMarker marker = frm.Current_Marker;
+            cVideoMarker? marker = frm.MarkerList.Current_Marker;
             if (marker == null) { return; }
             double pos = marker.Position;
 
@@ -3302,6 +3378,12 @@ namespace Richard_VLC
 
             Update_Value("current_pos");
             Update_Value("current_time");
+        }
+        private void Editor_Marker_Change(object sender, EventArgs e)
+        {
+            Debug.WriteLine($"Edit_Marker_Change");
+
+            drawTrackMarkers();
         }
 
     }

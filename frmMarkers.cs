@@ -24,6 +24,7 @@ namespace Richard_VLC
         public event EventHandler Editor_Remove_Marker;
         public event EventHandler Editor_GoTo_Marker;
         public event EventHandler Editor_Change_Marker_Color;
+        public event EventHandler Editor_Marker_Change;
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Form MainForm { get; set; }
@@ -31,7 +32,7 @@ namespace Richard_VLC
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public cVideoMarkers MarkerList { get; set; }
 
-        public cVideoMarker? Current_Marker = null;
+        //public cVideoMarker? Current_Marker = null;
 
         public bool _loading_data = true;
 
@@ -87,8 +88,8 @@ namespace Richard_VLC
 
                 int rowidx = this.dataGridView1.Rows.Add(row);
 
-                if (this.Current_Marker != null) {
-                    if (marker.MarkerGUID.Equals(this.Current_Marker.MarkerGUID)) {
+                if (this.MarkerList.Current_Marker != null) {
+                    if (marker.MarkerGUID.Equals(this.MarkerList.Current_Marker.MarkerGUID)) {
                         Debug.WriteLine($"Display_MarkerList({rowidx}) - select # {marker.MarkerID} - {marker.Position} [ {marker.MarkerGUID.ToString()} ]");
                         sel_row = rowidx;
                     }
@@ -171,9 +172,31 @@ namespace Richard_VLC
 
             cVideoMarker? marker = Marker_on_Row(e.RowIndex);
             if (marker == null) { return; }
-            this.Current_Marker = marker;
+            this.MarkerList.Current_Marker = marker;
 
             Debug.WriteLine($"dataGridView1_RowEnter({e.RowIndex}) - select # {marker.MarkerID} - {marker.Position} [ {marker.MarkerGUID.ToString()} ]");
+        }
+
+        public void Goto_Current_Marker()
+        {
+            var hold_cell = this.dataGridView1.CurrentCell;
+
+            cVideoMarker? hold_marker = null;
+            int hold_col = -1;
+            int hold_row = -1;
+
+            if (hold_cell != null) {
+                hold_marker = Marker_on_Row(hold_cell.RowIndex);
+                hold_col = hold_cell.ColumnIndex; // keep cursor in same column
+            }
+            int sel_row = Row_with_Marker(this.MarkerList.Current_Marker);
+
+            if (sel_row != hold_row) {
+                if (hold_col < 0) hold_col = 0;
+                _loading_data = true;
+                this.dataGridView1.CurrentCell = this.dataGridView1[hold_col, sel_row];
+                _loading_data = false;
+            }
         }
 
         private cVideoMarker? Marker_on_Row(int row_num)
@@ -380,6 +403,10 @@ namespace Richard_VLC
                 case 5:
                     if (sval.Contains(">")) {
                         marker.StartStop = eStartStop.BEGIN;
+                        this.MarkerList.Start_Marker = marker;
+                        if (this.MarkerList.Stop_Marker != null && this.MarkerList.Stop_Marker.MarkerGUID.Equals(marker.MarkerGUID)) {
+                            this.MarkerList.Stop_Marker = null;
+                        }
                         // TODO: set BEGIN in Video Editor
                         res = true;
                         // clear any other start markers
@@ -399,6 +426,10 @@ namespace Richard_VLC
                         }
                     } else if (sval.Contains("<")) {
                         marker.StartStop = eStartStop.END;
+                        this.MarkerList.Stop_Marker = marker;
+                        if (this.MarkerList.Start_Marker != null && this.MarkerList.Start_Marker.MarkerGUID.Equals(marker.MarkerGUID)) {
+                            this.MarkerList.Start_Marker = null;
+                        }
                         // TODO: set END in Video Editor
                         res = true;
                         // clear any other end markers
@@ -418,6 +449,12 @@ namespace Richard_VLC
                         }
                     } else if (string.IsNullOrWhiteSpace(sval)) {
                         marker.StartStop = eStartStop.NONE;
+                        if (this.MarkerList.Start_Marker != null && this.MarkerList.Start_Marker.MarkerGUID.Equals(marker.MarkerGUID)) {
+                            this.MarkerList.Start_Marker = null;
+                        }
+                        if (this.MarkerList.Stop_Marker != null && this.MarkerList.Stop_Marker.MarkerGUID.Equals(marker.MarkerGUID)) {
+                            this.MarkerList.Stop_Marker = null;
+                        }
                         // TODO: clear BEGIN or END in Video Editor
                         // this.toolTip1.SetToolTip(lab, marker.Title);
                         //       if this marker was a BEGIN or END
@@ -432,6 +469,10 @@ namespace Richard_VLC
                     //case 6:
                     //    marker.MarkerGUID = sval;
                     //    break;
+            }
+
+            if (res) {
+                this.Editor_Marker_Change?.Invoke(this, EventArgs.Empty);
             }
         }
 

@@ -89,7 +89,10 @@ namespace Richard_VLC
     {
         public List<cVideoMarker> markers { get; set; } = new();
 
-        public cVideoMarker? curr_marker { get; set; } = null;
+        public cVideoMarker? Current_Marker { get; set; } = null;
+
+        public cVideoMarker? Start_Marker { get; set; } = null;
+        public cVideoMarker? Stop_Marker { get; set; } = null;
 
         public int max_id { get; set; } = 0;
 
@@ -138,7 +141,7 @@ namespace Richard_VLC
 
             if (marker == null || marker == default(cVideoMarker)) return null;
 
-            this.curr_marker = marker;
+            this.Current_Marker = marker;
 
             return marker;
         }

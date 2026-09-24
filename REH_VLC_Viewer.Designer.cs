@@ -66,8 +66,10 @@
             toolStripSeparator = new ToolStripSeparator();
             exitToolStripMenuItem = new ToolStripMenuItem();
             settingsToolStripMenuItem = new ToolStripMenuItem();
-            darkModeToolStripMenuItem = new ToolStripMenuItem();
             editMarkersToolStripMenuItem = new ToolStripMenuItem();
+            darkModeToolStripMenuItem = new ToolStripMenuItem();
+            videoNavMenuItem1 = new ToolStripMenuItem();
+            infoBoxMenuItem2 = new ToolStripMenuItem();
             contentsToolStripMenuItem = new ToolStripMenuItem();
             indexToolStripMenuItem = new ToolStripMenuItem();
             searchToolStripMenuItem = new ToolStripMenuItem();
@@ -365,11 +367,12 @@
             dataGridView1.AllowUserToDeleteRows = false;
             dataGridView1.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             dataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dataGridView1.Location = new Point(820, 7);
+            dataGridView1.Location = new Point(824, 7);
             dataGridView1.Name = "dataGridView1";
             dataGridView1.RowHeadersVisible = false;
-            dataGridView1.Size = new Size(322, 254);
+            dataGridView1.Size = new Size(318, 276);
             dataGridView1.TabIndex = 4;
+            dataGridView1.CellFormatting += dataGridView1_CellFormatting;
             dataGridView1.Click += dataGridView1_Click;
             // 
             // trackBarJogShuttle
@@ -446,25 +449,41 @@
             // 
             // settingsToolStripMenuItem
             // 
-            settingsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { darkModeToolStripMenuItem, editMarkersToolStripMenuItem });
+            settingsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { editMarkersToolStripMenuItem, darkModeToolStripMenuItem, videoNavMenuItem1, infoBoxMenuItem2 });
             settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
             settingsToolStripMenuItem.Size = new Size(61, 20);
             settingsToolStripMenuItem.Text = "&Settings";
+            // 
+            // editMarkersToolStripMenuItem
+            // 
+            editMarkersToolStripMenuItem.Name = "editMarkersToolStripMenuItem";
+            editMarkersToolStripMenuItem.Size = new Size(191, 22);
+            editMarkersToolStripMenuItem.Text = "Edit Markers...";
+            editMarkersToolStripMenuItem.Click += editMarkersToolStripMenuItem_Click;
             // 
             // darkModeToolStripMenuItem
             // 
             darkModeToolStripMenuItem.CheckOnClick = true;
             darkModeToolStripMenuItem.Name = "darkModeToolStripMenuItem";
-            darkModeToolStripMenuItem.Size = new Size(148, 22);
+            darkModeToolStripMenuItem.Size = new Size(191, 22);
             darkModeToolStripMenuItem.Text = "Dark Mode";
             darkModeToolStripMenuItem.CheckedChanged += darkModeToolStripMenuItem_CheckedChanged;
             // 
-            // editMarkersToolStripMenuItem
+            // videoNavMenuItem1
             // 
-            editMarkersToolStripMenuItem.Name = "editMarkersToolStripMenuItem";
-            editMarkersToolStripMenuItem.Size = new Size(148, 22);
-            editMarkersToolStripMenuItem.Text = "Edit Markers...";
-            editMarkersToolStripMenuItem.Click += editMarkersToolStripMenuItem_Click;
+            videoNavMenuItem1.CheckOnClick = true;
+            videoNavMenuItem1.Name = "videoNavMenuItem1";
+            videoNavMenuItem1.Size = new Size(191, 22);
+            videoNavMenuItem1.Text = "Show Video Navigator";
+            videoNavMenuItem1.CheckedChanged += videoNavMenuItem1_CheckedChanged;
+            // 
+            // infoBoxMenuItem2
+            // 
+            infoBoxMenuItem2.CheckOnClick = true;
+            infoBoxMenuItem2.Name = "infoBoxMenuItem2";
+            infoBoxMenuItem2.Size = new Size(191, 22);
+            infoBoxMenuItem2.Text = "Show Info Panel";
+            infoBoxMenuItem2.CheckedChanged += infoBoxMenuItem2_CheckedChanged;
             // 
             // contentsToolStripMenuItem
             // 
@@ -631,5 +650,7 @@
         private ToolStripMenuItem settingsToolStripMenuItem;
         private ToolStripMenuItem darkModeToolStripMenuItem;
         private ToolStripMenuItem editMarkersToolStripMenuItem;
+        private ToolStripMenuItem videoNavMenuItem1;
+        private ToolStripMenuItem infoBoxMenuItem2;
     }
 }
